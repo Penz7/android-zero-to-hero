@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { rateLimit } from "@/lib/rate-limit";
 
 interface QuizLocalData {
   score: number;
@@ -17,6 +18,9 @@ interface ProgressRow {
 
 // ─── Upload local progress to cloud ───────────────────────────
 export async function syncToCloud(): Promise<boolean> {
+  // Rate limit: 1 sync per 5 seconds
+  if (!rateLimit("sync-to-cloud", 5000)) return false;
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -115,6 +119,9 @@ export async function saveQuizToCloud(
   score: number,
   total: number
 ): Promise<boolean> {
+  // Rate limit: 1 save per 2 seconds per quiz
+  if (!rateLimit(`save-quiz-${slug}`, 2000)) return false;
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -141,6 +148,9 @@ export async function saveChecklistToCloud(
   itemKey: string,
   checked: boolean
 ): Promise<boolean> {
+  // Rate limit: 1 save per 2 seconds per item
+  if (!rateLimit(`save-checklist-${itemKey}`, 2000)) return false;
+
   const {
     data: { user },
   } = await supabase.auth.getUser();

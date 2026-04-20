@@ -5,6 +5,7 @@ import { CheckCircle2, XCircle, RotateCcw, Trophy, ChevronDown, ChevronUp } from
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 import { saveQuizToCloud } from "@/lib/sync";
+import { rateLimit } from "@/lib/rate-limit";
 import type { QuizQuestion } from "@/data/quizzes";
 
 interface LessonQuizProps {
@@ -59,6 +60,9 @@ export function LessonQuiz({ slug, questions }: LessonQuizProps) {
   };
 
   const submit = () => {
+    // Rate limit: 1 submit per 3 seconds
+    if (!rateLimit(`quiz-submit-${slug}`, 3000)) return;
+
     const score = state.answers.reduce((acc: number, answer, i) => {
       return acc + (answer === questions[i].correctIndex ? 1 : 0);
     }, 0);
