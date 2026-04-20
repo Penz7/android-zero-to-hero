@@ -11,7 +11,10 @@ const inter = Inter({
   subsets: ["latin", "vietnamese"],
 });
 
+const OG_IMAGE = `${SITE_CONFIG.url}/images/og/home.svg`;
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_CONFIG.url),
   title: {
     default: SITE_CONFIG.name,
     template: `%s | ${SITE_CONFIG.name}`,
@@ -33,13 +36,13 @@ export const metadata: Metadata = {
     siteName: SITE_CONFIG.name,
     locale: "vi_VN",
     type: "website",
-    images: ["/images/og/home.svg"],
+    images: [{ url: OG_IMAGE, width: 1200, height: 630, alt: SITE_CONFIG.name }],
   },
   twitter: {
     card: "summary_large_image",
     title: SITE_CONFIG.name,
     description: SITE_CONFIG.description,
-    images: ["/images/og/home.svg"],
+    images: [OG_IMAGE],
   },
   robots: {
     index: true,
