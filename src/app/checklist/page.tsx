@@ -1,11 +1,13 @@
 import { Breadcrumb } from "@/components/layout/Breadcrumb";
 import { ChecklistItem } from "@/components/content/ChecklistItem";
+import { LessonProgress } from "@/components/content/LessonProgress";
+import { ALL_LESSONS } from "@/lib/constants";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Checklist phỏng vấn",
+  title: "Checklist & Tiến độ",
   description:
-    "Checklist đầy đủ cho Android Developer: Kotlin, Compose, Architecture, và phỏng vấn tổng hợp.",
+    "Theo dõi tiến độ học tập qua quiz và checklist kiến thức phỏng vấn Android Developer.",
 };
 
 const checklists = [
@@ -71,24 +73,52 @@ export default function ChecklistPage() {
 
       <div className="max-w-3xl mx-auto">
         <h1 className="text-4xl font-bold tracking-tight">
-          ✅ Checklist phỏng vấn
+          ✅ Checklist & Tiến độ
         </h1>
         <p className="mt-3 text-lg text-muted-foreground">
-          Kiểm tra kiến thức trước khi phỏng vấn. Đánh dấu những mục bạn đã
-          nắm vững.
+          Hoàn thành quiz ở cuối mỗi bài học để đánh dấu tiến độ. Checklist kiến
+          thức phỏng vấn bên dưới.
         </p>
 
-        <div className="mt-8 space-y-10">
-          {checklists.map((section) => (
-            <section key={section.title}>
-              <h2 className="text-xl font-bold mb-4">{section.title}</h2>
-              <div className="space-y-2">
-                {section.items.map((item) => (
-                  <ChecklistItem key={item} text={item} />
-                ))}
-              </div>
-            </section>
-          ))}
+        {/* Lesson Progress — quiz-based */}
+        <div className="mt-10">
+          <h2 className="text-2xl font-bold tracking-tight mb-6">
+            📚 Tiến độ bài học (qua Quiz)
+          </h2>
+          <p className="text-sm text-muted-foreground mb-6">
+            Làm quiz ở cuối mỗi bài học và đạt ≥ 70% để đánh dấu hoàn thành.
+            Tiến độ được lưu trên trình duyệt của bạn.
+          </p>
+          <LessonProgress
+            lessons={ALL_LESSONS.map((l) => ({
+              slug: l.slug,
+              title: l.title,
+              day: l.day,
+              week: l.week,
+            }))}
+          />
+        </div>
+
+        {/* Manual checklist */}
+        <div className="mt-16">
+          <h2 className="text-2xl font-bold tracking-tight mb-6">
+            📋 Checklist phỏng vấn
+          </h2>
+          <p className="text-sm text-muted-foreground mb-6">
+            Đánh dấu những kiến thức bạn đã nắm vững. Tự đánh giá trung thực.
+          </p>
+          <div className="space-y-10">
+            {checklists.map((section) => (
+              <section key={section.title}>
+                <h3 className="text-lg font-bold mb-4">{section.title}</h3>
+                <div className="space-y-2">
+                  {section.items.map((item) => (
+                    <ChecklistItem key={item} text={item} />
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
         </div>
       </div>
     </div>

@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { Breadcrumb } from "@/components/layout/Breadcrumb";
 import { ALL_LESSONS, WEEKS } from "@/lib/constants";
 import { LessonContent } from "./LessonContent";
+import { LessonQuiz } from "@/components/content/LessonQuiz";
+import { getQuizBySlug } from "@/data/quizzes";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Clock, Calendar, Tag } from "lucide-react";
 import type { Metadata } from "next";
@@ -120,6 +122,14 @@ export default async function LessonPage({ params }: LessonPageProps) {
               📝 Nội dung bài học đang được cập nhật...
             </p>
           </div>
+        )}
+
+        {/* Quiz */}
+        {getQuizBySlug(slug) && (
+          <LessonQuiz
+            slug={slug}
+            questions={getQuizBySlug(slug)!.questions}
+          />
         )}
 
         {/* Navigation */}
