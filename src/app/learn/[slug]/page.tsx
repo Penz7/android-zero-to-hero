@@ -3,9 +3,9 @@ import { Breadcrumb } from "@/components/layout/Breadcrumb";
 import { ALL_LESSONS, WEEKS } from "@/lib/constants";
 import { LessonContent } from "./LessonContent";
 import { LessonQuiz } from "@/components/content/LessonQuiz";
-import { CodePlayground } from "@/components/content/CodePlayground";
+import { CodePlayground, MultiPlayground } from "@/components/content/CodePlayground";
 import { getQuizBySlug } from "@/data/quizzes";
-import { getPlaygroundBySlug } from "@/data/playgrounds";
+import { getPlaygroundBySlug, getPlaygroundGroupBySlug } from "@/data/playgrounds";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Clock, Calendar, Tag, Code2 } from "lucide-react";
 import type { Metadata } from "next";
@@ -126,15 +126,29 @@ export default async function LessonPage({ params }: LessonPageProps) {
           </div>
         )}
 
-        {/* Playground */}
-        {getPlaygroundBySlug(slug).length > 0 && (
+        {/* Playground — inline editor with Piston API execution */}
+        {getPlaygroundGroupBySlug(slug) ? (
           <div className="mt-10">
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <h2 className="text-xl font-bold mb-2 flex items-center gap-2">
               <Code2 className="h-5 w-5 text-green-600" />
               💻 Thử code ngay
             </h2>
             <p className="text-sm text-muted-foreground mb-4">
-              Click &quot;Chạy code&quot; để mở trong Kotlin Playground — sửa code và chạy thử ngay trên trình duyệt.
+              Sửa code trực tiếp trong editor và nhấn <strong>&quot;▶ Chạy&quot;</strong> để xem kết quả ngay — không cần mở trang khác.
+            </p>
+            <MultiPlayground
+              title={getPlaygroundGroupBySlug(slug)!.label}
+              snippets={getPlaygroundGroupBySlug(slug)!.snippets}
+            />
+          </div>
+        ) : getPlaygroundBySlug(slug).length > 0 ? (
+          <div className="mt-10">
+            <h2 className="text-xl font-bold mb-2 flex items-center gap-2">
+              <Code2 className="h-5 w-5 text-green-600" />
+              💻 Thử code ngay
+            </h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Sửa code và nhấn <strong>&quot;▶ Chạy&quot;</strong> để thực thi ngay trong trang này.
             </p>
             {getPlaygroundBySlug(slug).map((snippet) => (
               <CodePlayground
@@ -144,7 +158,7 @@ export default async function LessonPage({ params }: LessonPageProps) {
               />
             ))}
           </div>
-        )}
+        ) : null}
 
         {/* Quiz */}
         {getQuizBySlug(slug) && (
