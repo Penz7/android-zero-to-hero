@@ -67,10 +67,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signInWithGitHub = useCallback(async () => {
-    const isProd = process.env.NODE_ENV === "production";
-    const redirectTo = isProd
-      ? "https://penz7.github.io/android-zero-to-hero/"
-      : "http://localhost:3000";
+    const redirectTo =
+      typeof window !== "undefined"
+        ? window.location.origin
+        : "https://penz7.github.io/android-zero-to-hero";
 
     await supabase.auth.signInWithOAuth({
       provider: "github",
