@@ -192,7 +192,7 @@ export default function ProjectsPage() {
                     </span>
                   </div>
                   <Link
-                    href={`/android-zero-to-hero/projects/${project.slug}/`}
+                    href={`/projects/${project.slug}/`}
                     className="text-green-600 hover:text-green-700 font-medium flex items-center gap-1"
                   >
                     Xem hướng dẫn <ArrowRight className="h-3.5 w-3.5" />

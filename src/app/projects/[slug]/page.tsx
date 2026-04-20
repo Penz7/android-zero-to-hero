@@ -292,7 +292,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         {/* Navigation */}
         <div className="mt-12 flex justify-between items-center border-t pt-6">
           <Link
-            href="/android-zero-to-hero/projects/"
+            href="/projects/"
             className="text-sm text-muted-foreground hover:text-green-600 transition-colors"
           >
             ← Tất cả dự án
@@ -303,7 +303,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
             if (next) {
               return (
                 <Link
-                  href={`/android-zero-to-hero/projects/${next.slug}/`}
+                  href={`/projects/${next.slug}/`}
                   className="text-sm text-green-600 hover:text-green-700 font-medium flex items-center gap-1"
                 >
                   Dự án tiếp: {next.title} <ArrowRight className="h-3.5 w-3.5" />
