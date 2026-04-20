@@ -33,68 +33,10 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* CSS Custom Properties — defined OUTSIDE @layer for full specificity */
-:root {
-  --background: #ffffff;
-  --foreground: #0a0a0a;
-  --card: #ffffff;
-  --card-foreground: #0a0a0a;
-  --popover: #ffffff;
-  --popover-foreground: #0a0a0a;
-  --primary: #006a07;
-  --primary-foreground: #f8f8f8;
-  --secondary: #eaeff5;
-  --secondary-foreground: #222222;
-  --muted: #edf2f8;
-  --muted-foreground: #636363;
-  --accent: #edf2f8;
-  --accent-foreground: #222222;
-  --destructive: #cc272e;
-  --destructive-foreground: #f8f8f8;
-  --border: #d9dfe5;
-  --input: #d9dfe5;
-  --ring: #006a07;
-  --radius: 0.625rem;
-}
-
-.dark {
-  --background: #0a0a0a;
-  --foreground: #f8f8f8;
-  --card: #121212;
-  --card-foreground: #f8f8f8;
-  --popover: #121212;
-  --popover-foreground: #f8f8f8;
-  --primary: #009c24;
-  --primary-foreground: #0a0a0a;
-  --secondary: #1e2226;
-  --secondary-foreground: #eeeeee;
-  --muted: #1e2226;
-  --muted-foreground: #8f8f8f;
-  --accent: #1e2226;
-  --accent-foreground: #eeeeee;
-  --destructive: #cc272e;
-  --destructive-foreground: #f8f8f8;
-  --border: #2a2e33;
-  --input: #2a2e33;
-  --ring: #009c24;
-}
-
-/* Base styles */
-* {
-  border-color: var(--border);
-}
-
-body {
-  background-color: var(--background);
-  color: var(--foreground);
-}
-
-/* Smooth scrolling */
 html {
   scroll-behavior: smooth;
 }
 
-/* Responsive code blocks */
 @media (max-width: 640px) {
   pre {
     font-size: 0.75rem;

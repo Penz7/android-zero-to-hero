@@ -53,15 +53,37 @@ export const metadata: Metadata = {
   },
 };
 
+const LIGHT_THEME = {
+  "--background": "#ffffff",
+  "--foreground": "#0a0a0a",
+  "--card": "#ffffff",
+  "--card-foreground": "#0a0a0a",
+  "--popover": "#ffffff",
+  "--popover-foreground": "#0a0a0a",
+  "--primary": "#006a07",
+  "--primary-foreground": "#f8f8f8",
+  "--secondary": "#eaeff5",
+  "--secondary-foreground": "#222222",
+  "--muted": "#edf2f8",
+  "--muted-foreground": "#636363",
+  "--accent": "#edf2f8",
+  "--accent-foreground": "#222222",
+  "--destructive": "#cc272e",
+  "--destructive-foreground": "#f8f8f8",
+  "--border": "#d9dfe5",
+  "--input": "#d9dfe5",
+  "--ring": "#006a07",
+  "--radius": "0.625rem",
+} as const;
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="vi" suppressHydrationWarning>
+    <html lang="vi" suppressHydrationWarning style={LIGHT_THEME as React.CSSProperties}>
       <head>
-        {/* Google Analytics - Replace G-XXXXXXXXXX with your GA4 ID */}
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"
           strategy="afterInteractive"
@@ -77,6 +99,10 @@ export default function RootLayout({
       </head>
       <body
         className={`${inter.variable} font-sans antialiased min-h-screen flex flex-col`}
+        style={{
+          backgroundColor: "var(--background)",
+          color: "var(--foreground)",
+        }}
       >
         <Header />
         <main className="flex-1">{children}</main>
