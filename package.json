@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build && npx pagefind --site out --output-path _pagefind",
+    "build": "next build && npx pagefind --site out --output-subdir _pagefind",
     "start": "next start",
     "lint": "eslint"
   },
