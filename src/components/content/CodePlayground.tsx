@@ -137,19 +137,34 @@ function CodeMirrorEditor({
       "&.cm-focused .cm-cursor": { borderLeftColor: "#f5e0dc" },
       "&.cm-focused .cm-selectionBackground,.cm-selectionBackground": { backgroundColor: "#45475a" },
     });
-    const state = EditorState.create({
-      doc: code,
-      extensions: [
-        lineNumbers(), highlightActiveLine(), history(),
-        indentOnInput(), kotlinLang, syntaxHighlighting(kotlinHighlight),
-        theme, updateListener,
-        keymap.of([...defaultKeymap, ...historyKeymap]),
-        EditorView.lineWrapping,
-      ],
-    });
-    const view = new EditorView({ state, parent: containerRef.current });
-    viewRef.current = view;
-    return () => { view.destroy(); viewRef.current = null; };
+    const extensions = [
+      lineNumbers(), highlightActiveLine(), history(),
+      indentOnInput(), kotlinLang, syntaxHighlighting(kotlinHighlight),
+      theme, updateListener,
+      keymap.of([...defaultKeymap, ...historyKeymap]),
+      EditorView.lineWrapping,
+    ].filter(Boolean);
+
+    try {
+      const state = EditorState.create({
+        doc: code,
+        extensions,
+      });
+      const view = new EditorView({ state, parent: containerRef.current });
+      viewRef.current = view;
+    } catch (err) {
+      console.error("CodeMirror init error:", err);
+      // Fallback: show plain textarea
+      if (containerRef.current) {
+        containerRef.current.innerHTML = "";
+        const ta = document.createElement("textarea");
+        ta.value = code;
+        ta.style.cssText = "width:100%;height:100%;background:#1e1e2e;color:#cdd6f4;font-family:monospace;font-size:14px;padding:12px;border:none;resize:none;";
+        ta.addEventListener("input", (e) => onChangeRef.current((e.target as HTMLTextAreaElement).value));
+        containerRef.current.appendChild(ta);
+      }
+    }
+    return () => { viewRef.current?.destroy(); viewRef.current = null; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync external code changes (tab switch)
