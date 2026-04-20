@@ -33,8 +33,13 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Add .nojekyll
+        run: touch ./out/.nojekyll
+
       - name: Setup Pages
-        uses: actions/configure-pages@v4
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
