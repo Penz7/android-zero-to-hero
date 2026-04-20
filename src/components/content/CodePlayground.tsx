@@ -233,22 +233,37 @@ function PlaygroundInner({
     setResult(null);
     const t0 = performance.now();
     try {
-      const res = await fetch("https://emkc.org/api/v2/piston/execute", {
+      const res = await fetch("https://api.kotlinlang.org/api/1.x/compiler/run", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({
-          language: "kotlin",
-          version: "1.9.24",
-          files: [{ content: code }],
+          files: [{ name: "File.kt", text: code }],
+          conf: "kotlin",
         }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      setResult({
-        output: data.run?.stdout || "",
-        error: data.run?.stderr || "",
-        ms: Math.round(performance.now() - t0),
-      });
+      const ms = Math.round(performance.now() - t0);
+
+      // Parse output from <outStream>...</outStream>
+      let output = "";
+      const outMatch = data.text?.match(/<outStream>([\s\S]*?)<\/outStream>/);
+      if (outMatch) output = outMatch[1];
+
+      // Parse compilation errors
+      let error = "";
+      if (data.errors) {
+        const fileErrors = Object.values(data.errors).flat() as Array<{ message: string }>;
+        if (fileErrors.length > 0) {
+          error = fileErrors.map((e) => `❌ ${e.message}`).join("\n");
+        }
+      }
+      // Runtime exception
+      if (data.exception) {
+        error += (error ? "\n" : "") + `⚠️ ${data.exception.message || String(data.exception)}`;
+      }
+
+      setResult({ output, error, ms });
     } catch (err) {
       setResult({
         output: "",
