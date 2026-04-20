@@ -4,6 +4,7 @@ import Script from "next/script";
 import "./globals.css";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { LoginBanner } from "@/components/layout/LoginBanner";
 import { Providers } from "@/components/Providers";
 import { SITE_CONFIG } from "@/lib/constants";
 
@@ -107,6 +108,7 @@ export default function RootLayout({
       >
         <Providers>
           <Header />
+          <LoginBanner />
           <main className="flex-1">{children}</main>
           <Footer />
         </Providers>

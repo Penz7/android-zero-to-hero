@@ -3,9 +3,11 @@ import { Breadcrumb } from "@/components/layout/Breadcrumb";
 import { ALL_LESSONS, WEEKS } from "@/lib/constants";
 import { LessonContent } from "./LessonContent";
 import { LessonQuiz } from "@/components/content/LessonQuiz";
+import { CodePlayground } from "@/components/content/CodePlayground";
 import { getQuizBySlug } from "@/data/quizzes";
+import { getPlaygroundBySlug } from "@/data/playgrounds";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Clock, Calendar, Tag } from "lucide-react";
+import { ArrowLeft, ArrowRight, Clock, Calendar, Tag, Code2 } from "lucide-react";
 import type { Metadata } from "next";
 import fs from "fs";
 import path from "path";
@@ -121,6 +123,26 @@ export default async function LessonPage({ params }: LessonPageProps) {
             <p className="text-muted-foreground">
               📝 Nội dung bài học đang được cập nhật...
             </p>
+          </div>
+        )}
+
+        {/* Playground */}
+        {getPlaygroundBySlug(slug).length > 0 && (
+          <div className="mt-10">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <Code2 className="h-5 w-5 text-green-600" />
+              💻 Thử code ngay
+            </h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Click &quot;Chạy code&quot; để mở trong Kotlin Playground — sửa code và chạy thử ngay trên trình duyệt.
+            </p>
+            {getPlaygroundBySlug(slug).map((snippet) => (
+              <CodePlayground
+                key={snippet.title}
+                code={snippet.code}
+                language="kotlin"
+              />
+            ))}
           </div>
         )}
 
