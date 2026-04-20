@@ -82,8 +82,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    // 1. Supabase sign out
     await supabase.auth.signOut();
+
+    // 2. Clear ALL localStorage (quiz progress, login banner, etc.)
+    localStorage.clear();
+
+    // 3. Clear sessionStorage if any
+    sessionStorage.clear();
+
+    // 4. Reset state
     setLastSyncTime(null);
+
+    // 5. Redirect to homepage
+    window.location.href = "/android-zero-to-hero/";
   }, []);
 
   const syncProgress = useCallback(async () => {
