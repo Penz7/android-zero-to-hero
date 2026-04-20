@@ -12,24 +12,26 @@ import { syntaxHighlighting, HighlightStyle, indentOnInput } from "@codemirror/l
 import { StreamLanguage } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
 
-// ─── Kotlin Syntax Theme ────────────────────────────────────────
+// ─── Kotlin Syntax Theme (bright, high-contrast) ───────────────
 const kotlinHighlight = HighlightStyle.define([
-  { tag: tags.keyword, color: "#c678dd" },
-  { tag: tags.operatorKeyword, color: "#c678dd" },
-  { tag: tags.definitionKeyword, color: "#c678dd" },
+  { tag: tags.keyword, color: "#c678dd", fontWeight: "bold" },
+  { tag: tags.operatorKeyword, color: "#c678dd", fontWeight: "bold" },
+  { tag: tags.definitionKeyword, color: "#c678dd", fontWeight: "bold" },
   { tag: tags.string, color: "#98c379" },
-  { tag: tags.comment, color: "#5c6370", fontStyle: "italic" },
-  { tag: tags.number, color: "#d19a66" },
-  { tag: tags.bool, color: "#d19a66" },
-  { tag: tags.null, color: "#d19a66" },
-  { tag: tags.function(tags.variableName), color: "#61afef" },
-  { tag: tags.typeName, color: "#e5c07b" },
-  { tag: tags.className, color: "#e5c07b" },
-  { tag: tags.propertyName, color: "#e06c75" },
-  { tag: tags.operator, color: "#56b6c2" },
-  { tag: tags.punctuation, color: "#abb2bf" },
-  { tag: tags.variableName, color: "#e06c75" },
-  { tag: tags.meta, color: "#e5c07b" },
+  { tag: tags.comment, color: "#7f849e", fontStyle: "italic" },
+  { tag: tags.number, color: "#fab387" },
+  { tag: tags.bool, color: "#fab387" },
+  { tag: tags.null, color: "#fab387" },
+  { tag: tags.function(tags.variableName), color: "#89b4fa" },
+  { tag: tags.typeName, color: "#f9e2af" },
+  { tag: tags.className, color: "#f9e2af" },
+  { tag: tags.propertyName, color: "#f38ba8" },
+  { tag: tags.operator, color: "#89dceb" },
+  { tag: tags.punctuation, color: "#bac2de" },
+  { tag: tags.variableName, color: "#cba6f7" },
+  { tag: tags.meta, color: "#f9e2af" },
+  { tag: tags.atom, color: "#fab387" },
+  { tag: tags.escape, color: "#fab387" },
 ]);
 
 // ─── Kotlin Language Definition ─────────────────────────────────
@@ -126,13 +128,14 @@ function CodeMirrorEditor({
     });
     const theme = EditorView.theme({
       "&": { height, fontSize: "14px", backgroundColor: "#1e1e2e" },
-      ".cm-scroller": { fontFamily: "'JetBrains Mono','Fira Code','Cascadia Code',monospace", overflow: "auto" },
-      ".cm-content": { caretColor: "#528bff", padding: "8px 0" },
-      ".cm-gutters": { backgroundColor: "#1e1e2e", color: "#546178", border: "none" },
+      ".cm-scroller": { fontFamily: "'JetBrains Mono','Fira Code','Cascadia Code',monospace", overflow: "auto", color: "#cdd6f4" },
+      ".cm-content": { caretColor: "#f5e0dc", padding: "8px 0", color: "#cdd6f4" },
+      ".cm-line": { color: "#cdd6f4" },
+      ".cm-gutters": { backgroundColor: "#1e1e2e", color: "#6c7086", border: "none" },
       ".cm-activeLineGutter": { backgroundColor: "#2c313c" },
       ".cm-activeLine": { backgroundColor: "#2c313c44" },
-      "&.cm-focused .cm-cursor": { borderLeftColor: "#528bff" },
-      "&.cm-focused .cm-selectionBackground,.cm-selectionBackground": { backgroundColor: "#3e4451" },
+      "&.cm-focused .cm-cursor": { borderLeftColor: "#f5e0dc" },
+      "&.cm-focused .cm-selectionBackground,.cm-selectionBackground": { backgroundColor: "#45475a" },
     });
     const state = EditorState.create({
       doc: code,
