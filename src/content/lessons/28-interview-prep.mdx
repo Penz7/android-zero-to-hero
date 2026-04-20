@@ -1,0 +1,258 @@
+## Phỏng vấn Android Developer
+
+### Câu hỏi phỏng vấn phổ biến
+
+**1. Kotlin Fundamentals:**
+```kotlin
+// Q: Sự khác biệt giữa val và var?
+// A: val là immutable (không thể gán lại), var là mutable
+
+// Q: Data class là gì? Khi nào dùng?
+// A: Data class tự động tạo equals(), hashCode(), copy(), toString().
+// Dùng cho DTOs, entities, API responses
+
+// Q: Null safety trong Kotlin?
+// A: Nullable types (?), safe call (?.), Elvis (?:), non-null assertion (!!)
+
+// Q: Extension functions?
+// A: Thêm hàm mới vào class hiện có mà không cần kế thừa
+
+// Q: Sealed class vs Enum?
+// A: Sealed class linh hoạt hơn, mỗi subclass có thể có state khác nhau
+```
+
+**2. Coroutines:**
+```kotlin
+// Q: Dispatchers trong Coroutines?
+// A: Main (UI), IO (network/db), Default (CPU-intensive), Unconfined
+
+// Q: StateFlow vs SharedFlow?
+// A: StateFlow giữ giá trị hiện tại, SharedFlow có thể có nhiều subscribers
+
+// Q: Cách handle exception trong Coroutines?
+// A: try-catch, CoroutineExceptionHandler, SupervisorJob
+```
+
+**3. Compose:**
+```kotlin
+// Q: Recomposition là gì?
+// A: Compose redraw UI khi state thay đổi
+
+// Q: remember vs rememberSaveable?
+// A: remember giữ qua recomposition, rememberSaveable giữ qua config changes
+
+// Q: State hoisting là gì?
+// A: Chuyển state lên component cha, component con trở nên stateless
+
+// Q: LazyColumn vs Column với verticalScroll?
+// A: LazyColumn chỉ render visible items, hiệu quả hơn cho danh sách dài
+```
+
+**4. Architecture:**
+```
+// Q: MVVM là gì?
+// A: Model-View-ViewModel: tách UI (View) và business logic (ViewModel)
+
+// Q: Repository pattern?
+// A: Abstract data sources, cung cấp single source of truth
+
+// Q: Clean Architecture?
+// A: Domain (entities, use cases), Data (repository, data sources), Presentation (UI, VM)
+
+// Q: Dependency Injection?
+// A: Cung cấp dependencies từ bên ngoài, giúp testable và decoupled
+```
+
+### STAR Method cho Behavioral Questions
+
+```markdown
+STAR = Situation - Task - Action - Result
+
+Example: "Hãy kể về project bạn làm việc nhóm"
+
+S (Situation): "Trong project cuối khóa, nhóm 5 người làm app quản lý chi tiêu"
+
+T (Task): "Tôi đảm nhận phần Architecture và CI/CD pipeline"
+
+A (Action): 
+- Setup MVVM với Clean Architecture
+- Implement Hilt DI cho testability  
+- Tạo GitHub Actions CI/CD pipeline
+- Review PRs và pair programming với teammates
+
+R (Result): 
+- App hoàn thành đúng hạn
+- 90% code coverage
+- Deploy thành công lên Play Store
+- Nhóm đạt điểm A+
+```
+
+### Technical Questions - Code Challenge
+
+```kotlin
+// Q: Viết hàm đảo ngược chuỗi
+fun reverseString(s: String): String = s.reversed()
+
+// Q: Tìm số lớn thứ 2 trong list
+fun secondLargest(numbers: List<Int>): Int? {
+    return numbers.distinct().sortedDescending().getOrNull(1)
+}
+
+// Q: Flatten nested list
+fun flatten(list: List<Any>): List<Any> = list.flatMap {
+    if (it is List<*>) flatten(it.filterNotNull()) else listOf(it)
+}
+
+// Q: Implement debounce
+fun <T> Flow<T>.debounce(timeoutMillis: Long): Flow<T> = flow {
+    coroutineScope {
+        val downstream = MutableSharedFlow<T>()
+        launch {
+            collect { downstream.emit(it) }
+        }
+        downstream.debounce(timeoutMillis).collect { emit(it) }
+    }
+}
+
+// Q: Cách xử lý configuration changes?
+// A: ViewModel (survive config changes), SavedStateHandle (survive process death)
+```
+
+### Design Patterns Questions
+
+```kotlin
+// Q: Singleton trong Kotlin?
+object Database {
+    fun query() { /* ... */ }
+}
+
+// Q: Observer pattern?
+// A: LiveData, StateFlow, RxJava
+
+// Q: Builder pattern?
+class UserBuilder {
+    private var name: String = ""
+    private var age: Int = 0
+    
+    fun name(name: String) = apply { this.name = name }
+    fun age(age: Int) = apply { this.age = age }
+    fun build() = User(name, age)
+}
+
+// Q: Strategy pattern?
+interface SortStrategy {
+    fun sort(list: List<Int>): List<Int>
+}
+
+class AscendingSort : SortStrategy {
+    override fun sort(list: List<Int>) = list.sorted()
+}
+
+class DescendingSort : SortStrategy {
+    override fun sort(list: List<Int>) = list.sortedDescending()
+}
+```
+
+### Portfolio Tips
+
+```markdown
+Portfolio nên bao gồm:
+
+1. GitHub Profile
+   - Pin 6 repositories quan trọng
+   - README.md cho mỗi repo
+   - Consistent commit history
+
+2. Projects Showcase
+   - 2-3 apps hoàn chỉnh
+   - Code quality cao
+   - Architecture patterns
+   - Unit/UI tests
+
+3. Skills Demonstrated
+   - Kotlin
+   - Jetpack Compose
+   - MVVM/Clean Architecture
+   - Room, Retrofit, Hilt
+   - Coroutines, Flow
+   - CI/CD
+
+4. Documentation
+   - Setup instructions
+   - Architecture diagrams
+   - Screenshots/GIFs
+   - Challenges & solutions
+```
+
+### What to Prepare
+
+```markdown
+Before Interview:
+
+1. Technical Review
+   - Kotlin fundamentals
+   - Android lifecycle
+   - Compose basics
+   - Architecture patterns
+   - Testing strategies
+
+2. Project Deep-Dives
+   - Know your code inside-out
+   - Explain architectural decisions
+   - Discuss challenges & solutions
+   - Show metrics & impact
+
+3. Behavioral Questions
+   - Teamwork examples
+   - Conflict resolution
+   - Learning experiences
+   - Project failures & learnings
+
+4. Company Research
+   - Products & services
+   - Tech stack
+   - Company culture
+   - Recent news
+
+5. Questions to Ask
+   - Team structure
+   - Development process
+   - Tech challenges
+   - Growth opportunities
+```
+
+### Salary Negotiation Tips
+
+```markdown
+1. Research Market Rate
+   - Glassdoor, LinkedIn, Levels.fyi
+   - Location-based rates
+   - Experience-based rates
+
+2. Know Your Worth
+   - Skills inventory
+   - Certifications
+   - Project impact
+   - Unique value
+
+3. Negotiation Strategy
+   - Let them make first offer
+   - Negotiate total package (salary + benefits)
+   - Be professional & positive
+   - Have alternatives (BATNA)
+
+4. Benefits to Consider
+   - Remote work options
+   - Learning budget
+   - Stock options
+   - Health insurance
+   - Paid time off
+```
+
+### Mẹo thực tế
+
+> **💡 Tip**: Luyện tập coding trên LeetCode/HackerRank. Tập trung vào arrays, strings, trees, graphs.
+
+> **⚠️ Lưu ý**: Đừng giả vờ biết câu trả lời. Nói "Tôi chưa biết, nhưng tôi sẽ tìm hiểu" tốt hơn nhiều so với trả lời sai.
+
+> **🎯 Best Practice**: Mock interview với bạn bè hoặc mentor. Ghi âm và review lại để cải thiện.

@@ -1,0 +1,291 @@
+## ViewModel & StateFlow
+
+### ViewModel Class
+
+ViewModel giữ dữ liệu sống qua configuration changes (xoay màn hình, đổi ngôn ngữ...):
+
+```kotlin
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+
+class CounterViewModel : ViewModel() {
+    // StateFlow - state hiện tại
+    private val _count = MutableStateFlow(0)
+    val count: StateFlow<Int> = _count.asStateFlow()
+    
+    fun increment() {
+        _count.value++
+    }
+    
+    fun decrement() {
+        _count.value--
+    }
+    
+    fun reset() {
+        _count.value = 0
+    }
+}
+
+// Sử dụng trong Compose
+@Composable
+fun CounterScreen(viewModel: CounterViewModel = viewModel()) {
+    // collectAsState chuyển StateFlow thành Compose State
+    val count by viewModel.count.collectAsState()
+    
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = "Số: $count",
+            style = MaterialTheme.typography.headlineLarge
+        )
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = { viewModel.decrement() }) { Text("-") }
+            Button(onClick = { viewModel.reset() }) { Text("Reset") }
+            Button(onClick = { viewModel.increment() }) { Text("+") }
+        }
+    }
+}
+```
+
+### StateFlow vs LiveData
+
+```kotlin
+// StateFlow (Khuyến nghị cho Compose)
+class UserViewModel : ViewModel() {
+    private val _uiState = MutableStateFlow<UserUiState>(UserUiState.Loading)
+    val uiState: StateFlow<UserUiState> = _uiState.asStateFlow()
+}
+
+// Collect trong Compose
+@Composable
+fun UserScreen(viewModel: UserViewModel = viewModel()) {
+    val uiState by viewModel.uiState.collectAsState()
+    // UI tự động cập nhật khi state thay đổi
+}
+
+// LiveData (Cũ hơn, vẫn hoạt động nhưng ít tính năng hơn)
+class OldViewModel : ViewModel() {
+    private val _count = MutableLiveData(0)
+    val count: LiveData<Int> = _count
+    
+    fun increment() {
+        _count.value = (_count.value ?: 0) + 1
+    }
+}
+```
+
+### UI State Pattern
+
+```kotlin
+// Định nghĩa tất cả trạng thái UI có thể có
+data class ProductListUiState(
+    val isLoading: Boolean = false,
+    val products: List<Product> = emptyList(),
+    val searchQuery: String = "",
+    val selectedCategory: String? = null,
+    val error: String? = null,
+    val isRefreshing: Boolean = false
+)
+
+class ProductViewModel @Inject constructor(
+    private val getProductsUseCase: GetProductsUseCase
+) : ViewModel() {
+    
+    private val _uiState = MutableStateFlow(ProductListUiState())
+    val uiState: StateFlow<ProductListUiState> = _uiState.asStateFlow()
+    
+    init {
+        loadProducts()
+    }
+    
+    fun loadProducts() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, error = null) }
+            
+            getProductsUseCase()
+                .onSuccess { products ->
+                    _uiState.update { 
+                        it.copy(isLoading = false, products = products) 
+                    }
+                }
+                .onFailure { exception ->
+                    _uiState.update { 
+                        it.copy(isLoading = false, error = exception.message) 
+                    }
+                }
+        }
+    }
+    
+    fun onSearchQueryChanged(query: String) {
+        _uiState.update { it.copy(searchQuery = query) }
+    }
+    
+    fun onCategorySelected(category: String?) {
+        _uiState.update { it.copy(selectedCategory = category) }
+    }
+    
+    fun refresh() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRefreshing = true) }
+            loadProducts()
+            _uiState.update { it.copy(isRefreshing = false) }
+        }
+    }
+}
+```
+
+### viewModelScope
+
+```kotlin
+class DataViewModel : ViewModel() {
+    // viewModelScope tự động hủy khi ViewModel bị destroy
+    fun loadData() {
+        viewModelScope.launch {
+            // Coroutine tự động hủy khi ViewModel bị clear
+            val data = repository.fetchData()
+            _uiState.value = UiState.Success(data)
+        }
+    }
+    
+    // Nhiều coroutines cùng lúc
+    fun loadMultipleData() {
+        viewModelScope.launch {
+            val usersDeferred = async { repository.getUsers() }
+            val postsDeferred = async { repository.getPosts() }
+            
+            val users = usersDeferred.await()
+            val posts = postsDeferred.await()
+            
+            _uiState.value = UiState.Success(users, posts)
+        }
+    }
+}
+```
+
+### StateFlow với danh sách
+
+```kotlin
+data class TodoListState(
+    val items: List<Todo> = emptyList(),
+    val filter: TodoFilter = TodoFilter.ALL,
+    val isLoading: Boolean = false
+) {
+    // Computed property
+    val filteredItems: List<Todo>
+        get() = when (filter) {
+            TodoFilter.ALL -> items
+            TodoFilter.ACTIVE -> items.filter { !it.isCompleted }
+            TodoFilter.COMPLETED -> items.filter { it.isCompleted }
+        }
+}
+
+class TodoViewModel : ViewModel() {
+    private val _state = MutableStateFlow(TodoListState())
+    val state: StateFlow<TodoListState> = _state.asStateFlow()
+    
+    // derivedStateOf cho giá trị tính toán
+    val itemCount: StateFlow<Int> = state
+        .map { it.filteredItems.size }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+    
+    fun addTodo(title: String) {
+        _state.update { current ->
+            current.copy(items = current.items + Todo(title = title))
+        }
+    }
+    
+    fun toggleTodo(id: String) {
+        _state.update { current ->
+            current.copy(
+                items = current.items.map { item ->
+                    if (item.id == id) item.copy(isCompleted = !item.isCompleted)
+                    else item
+                }
+            )
+        }
+    }
+    
+    fun setFilter(filter: TodoFilter) {
+        _state.update { it.copy(filter = filter) }
+    }
+}
+```
+
+### Event Handling
+
+```kotlin
+// One-time events (navigation, snackbar, toast)
+class EventViewModel : ViewModel() {
+    private val _events = MutableSharedFlow<UiEvent>()
+    val events: SharedFlow<UiEvent> = _events.asSharedFlow()
+    
+    fun onButtonClick() {
+        viewModelScope.launch {
+            // Gửi event một lần
+            _events.emit(UiEvent.ShowSnackbar("Đã lưu!"))
+            _events.emit(UiEvent.Navigate("detail"))
+        }
+    }
+}
+
+sealed class UiEvent {
+    data class ShowSnackbar(val message: String) : UiEvent()
+    data class Navigate(val route: String) : UiEvent()
+    object ShowLoading : UiEvent()
+}
+
+// Collect events trong Compose
+@Composable
+fun EventScreen(viewModel: EventViewModel = viewModel()) {
+    val snackbarHostState = remember { SnackbarHostState() }
+    
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is UiEvent.ShowSnackbar -> {
+                    snackbarHostState.showSnackbar(event.message)
+                }
+                is UiEvent.Navigate -> {
+                    // Navigate
+                }
+                is UiEvent.ShowLoading -> {
+                    // Show loading
+                }
+            }
+        }
+    }
+}
+```
+
+### Combine States
+
+```kotlin
+class SearchViewModel : ViewModel() {
+    private val _query = MutableStateFlow("")
+    private val _category = MutableStateFlow<String?>(null)
+    private val _sortBy = MutableStateFlow(SortBy.DATE)
+    
+    // Combine nhiều state thành 1
+    val searchParams: StateFlow<SearchParams> = combine(
+        _query,
+        _category,
+        _sortBy
+    ) { query, category, sortBy ->
+        SearchParams(query, category, sortBy)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SearchParams())
+}
+```
+
+### Mẹo thực tế
+
+> **💡 Tip**: Sử dụng `stateIn` để chuyển đổi Flow thành StateFlow với cấu hình `WhileSubscribed(5000)` - nó sẽ hủy subscription sau 5 giây nếu không có collector, giúp tiết kiệm tài nguyên.
+
+> **⚠️ Lưu ý**: `StateFlow` luôn có giá trị (không null), trong khi `SharedFlow` có thể không có giá trị ban đầu. Dùng StateFlow cho UI state, SharedFlow cho events.
+
+> **🎯 Best Practice**: Tạo data class cho UI State thay vì sử dụng nhiều StateFlow riêng lẻ. Điều này giúp dễ dàng debug và test hơn.

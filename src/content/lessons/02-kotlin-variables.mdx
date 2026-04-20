@@ -1,0 +1,107 @@
+## Biến, Kiểu dữ liệu & String Templates
+
+### Khai báo biến trong Kotlin
+
+Kotlin cung cấp hai từ khóa để khai báo biến:
+
+- **`val`** (value): Biến chỉ đọc, không thể gán lại giá trị mới (giống `final` trong Java)
+- **`var`** (variable): Biến có thể thay đổi giá trị
+
+```kotlin
+fun main() {
+    // val - immutable (không thể thay đổi)
+    val ten: String = "Nguyễn Văn A"
+    val tuoi: Int = 25
+    // ten = "Trần Văn B" // ❌ Lỗi: Cannot assign to 'val'
+    
+    // var - mutable (có thể thay đổi)
+    var diemSo: Double = 8.5
+    diemSo = 9.0 // ✅ Hợp lệ
+    
+    println("Tên: $ten, Tuổi: $tuoi, Điểm: $diemSo")
+}
+```
+
+### Type Inference (Suy luận kiểu)
+
+Kotlin có khả năng tự động suy luận kiểu dữ liệu, giúp code ngắn gọn hơn:
+
+```kotlin
+fun main() {
+    // Kotlin tự suy luận kiểu - không cần khai báo rõ
+    val ten = "Hà Nội"          // String
+    val danSo = 8_000_000       // Int  
+    val nhietDo = 32.5          // Double
+    val laThuDauTien = true     // Boolean
+    val kyTu = 'A'              // Char
+    
+    // In ra kiểu dữ liệu của từng biến
+    println("ten là ${ten::class.simpleName}")           // String
+    println("danSo là ${danSo::class.simpleName}")       // Int
+    println("nhietDo là ${nhietDo::class.simpleName}")   // Double
+}
+```
+
+### Kiểu dữ liệu cơ bản
+
+| Kiểu | Mô tả | Ví dụ |
+|------|---------|-------|
+| `Int` | Số nguyên 32-bit | `val x = 100` |
+| `Long` | Số nguyên 64-bit | `val y = 100L` |
+| `Double` | Số thực 64-bit | `val pi = 3.14` |
+| `Float` | Số thực 32-bit | `val f = 3.14f` |
+| `String` | Chuỗi ký tự | `val s = "hello"` |
+| `Boolean` | Đúng/Sai | `val flag = true` |
+| `Char` | Ký tự đơn | `val c = 'A'` |
+
+### String Templates (Mẫu chuỗi)
+
+String templates cho phép nhúng biến và biểu thức trực tiếp vào chuỗi:
+
+```kotlin
+fun main() {
+    val hoTen = "Lê Minh Tuấn"
+    val tuoi = 28
+    val luong = 15_000_000.0
+    
+    // Template đơn giản với $
+    println("Họ tên: $hoTen")
+    println("Tuổi: $tuoi")
+    
+    // Template với biểu thức trong ${}
+    println("Năm sinh: ${2026 - tuoi}")
+    println("Lương 12 tháng: ${luong * 12}")
+    
+    // Template với method call
+    println("Tên viết hoa: ${hoTen.uppercase()}")
+    
+    // Template trong chuỗi nhiều dòng
+    val thongTin = """
+        |Họ tên: $hoTen
+        |Tuổi: $tuoi
+        |Lương: ${String.format("%,.0f", luong)} VND
+    """.trimMargin()
+    println(thongTin)
+}
+```
+
+### Constants (Hằng số)
+
+```kotlin
+// Hằng số thời gian biên dịch - dùng companion object
+class Config {
+    companion object {
+        const val API_URL = "https://api.example.com"
+        const val MAX_RETRY = 3
+    }
+}
+
+// Hằng số top-level
+const val DEFAULT_LANGUAGE = "vi"
+```
+
+### Mẹo thực tế
+
+> **💡 Tip**: Luôn ưu tiên sử dụng `val` thay vì `var` trừ khi thực sự cần thay đổi giá trị. Điều này giúp code an toàn hơn và dễ đọc hơn.
+
+> **⚠️ Lưu ý**: `const val` chỉ dùng được cho các giá trị nguyên thủy và String. Đối với các đối tượng phức tạp, hãy dùng `val` thông thường.

@@ -1,0 +1,61 @@
+## Giới thiệu Kotlin & Cài đặt môi trường
+
+### Kotlin là gì?
+
+Kotlin là ngôn ngữ lập trình hiện đại, được phát triển bởi JetBrains - công ty đứng sau IntelliJ IDEA. Kotlin được thiết kế để hoàn toàn tương thích với Java, đồng thời mang đến cú pháp ngắn gọn, an toàn hơn và mạnh mẽ hơn.
+
+### Tại sao chọn Kotlin cho Android?
+
+Google đã công bố Kotlin là ngôn ngữ ưu tiên hàng đầu (first-class language) cho phát triển Android từ năm 2017. Các lý do chính:
+
+- **An toàn null**: Giảm thiểu lỗi NullPointerException phổ biến trong Java
+- **Cú pháp ngắn gọn**: Giảm thiểu code boilerplate
+- **Tương thích 100% với Java**: Có thể sử dụng cả hai ngôn ngữ trong cùng dự án
+- **Hỗ trợ Coroutines**: Xử lý bất đồng bộ dễ dàng hơn
+
+### Cài đặt Android Studio
+
+1. Tải Android Studio từ trang chủ: [developer.android.com](https://developer.android.com/studio)
+2. Chạy trình cài đặt và làm theo hướng dẫn
+3. Sau khi cài đặt, mở Android Studio và chọn "New Project"
+4. Chọn template "Empty Activity" và đặt ngôn ngữ là Kotlin
+
+### Dự án đầu tiên: Hello World
+
+Khi tạo dự án mới, Android Studio sẽ tạo sẵn MainActivity.kt với nội dung cơ bản:
+
+```kotlin
+// MainActivity.kt - File chính của ứng dụng Android
+import androidx.appcompat.app.AppCompatActivity
+import android.os.Bundle
+
+class MainActivity : AppCompatActivity() {
+    // onCreate() được gọi khi Activity được khởi tạo
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // Hiển thị màn hình từ file layout XML
+        setContentView(R.layout.activity_main)
+    }
+}
+```
+
+### Cú pháp cơ bản của Kotlin
+
+```kotlin
+// Hàm main - điểm bắt đầu của chương trình
+fun main() {
+    // In ra màn hình console
+    println("Hello, World!")
+    println("Xin chào Việt Nam!")
+    
+    // Khai báo biến với val (không thể thay đổi)
+    val greeting = "Chào mừng bạn đến với Kotlin"
+    println(greeting)
+}
+```
+
+### Mẹo thực tế
+
+> **💡 Tip**: Khi mới bắt đầu, hãy thử chạy các ví dụ Kotlin trực tiếp trong Android Studio bằng cách click chuột phải vào file và chọn "Run". Bạn cũng có thể sử dụng [Kotlin Playground](https://play.kotlinlang.org) để thử nghiệm nhanh mà không cần cài đặt.
+
+> **⚠️ Lưu ý**: Đảm bảo JDK (Java Development Kit) đã được cài đặt trước khi cài Android Studio. Android Studio thường tự động cài đặt JDK đi kèm.

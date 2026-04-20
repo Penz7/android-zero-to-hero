@@ -1,0 +1,342 @@
+## Performance Optimization
+
+### Memory Leaks - Rò rỉ bộ nhớ
+
+```kotlin
+// ❌ BAD: Leak Context
+class LeakyViewModel : ViewModel() {
+    private var context: Context? = null
+    
+    fun setContext(context: Context) {
+        this.context = context // Leak! ViewModel sống lâu hơn Activity
+    }
+}
+
+// ✅ GOOD: Inject Application
+class SafeViewModel @Inject constructor(
+    private val application: Application
+) : ViewModel() {
+    // Sử dụng application thay vì Activity context
+    val resources = application.resources
+}
+```
+
+### Detect Memory Leaks với LeakCanary
+
+```kotlin
+// dependencies
+debugImplementation "com.squareup.leakcanary:leakcanary-android:2.12"
+
+// LeakCanary tự động detect memory leaks trong debug builds
+// Không cần code thêm gì cả!
+```
+
+### Recomposition Optimization
+
+```kotlin
+// ❌ BAD: Tạo object mới trong mỗi recomposition
+@Composable
+fun BadExample() {
+    // Lambda mới mỗi lần recomposition
+    val onClick = { println("Clicked") }
+    // Modifier mới mỗi lần
+    Button(onClick = onClick, modifier = Modifier.padding(16.dp)) {
+        Text("Click")
+    }
+}
+
+// ✅ GOOD: Dùng remember và stable types
+@Composable
+fun GoodExample() {
+    // remember lambda
+    val onClick = remember { { println("Clicked") } }
+    // Modifier reuse
+    val buttonModifier = remember { Modifier.padding(16.dp) }
+    
+    Button(onClick = onClick, modifier = buttonModifier) {
+        Text("Click")
+    }
+}
+```
+
+### Skippable Composables
+
+```kotlin
+// Composable có thể skip recomposition nếu parameters không thay đổi
+@Composable
+fun UserCard(
+    user: User,       // Stable type
+    onClick: () -> Unit  // Lambda luôn stable
+) {
+    Card {
+        Text(user.name)
+        Button(onClick = onClick) { Text("Select") }
+    }
+}
+
+// ❌ Tránh: Unstable parameters
+@Composable
+fun BadUserCard(
+    users: List<User>,  // List là unstable!
+    modifier: Modifier
+) {
+    // Sẽ recomposition mỗi lần dù data không đổi
+}
+
+// ✅ GOOD: Dùng ImmutableList hoặc @Stable
+@Stable
+data class UserState(
+    val users: List<User> = emptyList(),
+    val isLoading: Boolean = false
+)
+
+@Composable
+fun GoodUserCard(state: UserState) {
+    // Composable có thể skip nếu state không đổi
+}
+```
+
+### derivedStateOf cho tính toán đắt
+
+```kotlin
+@Composable
+fun OptimizedList(items: List<Item>) {
+    val listState = rememberLazyListState()
+    
+    // derivedStateOf chỉ tính lại khi dependencies thay đổi
+    val showButton by remember {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 0
+        }
+    }
+    
+    Box {
+        LazyColumn(state = listState) {
+            items(items) { ItemCard(it) }
+        }
+        
+        if (showButton) {
+            FloatingActionButton(
+                onClick = { /* scroll to top */ },
+                modifier = Modifier.align(Alignment.BottomEnd)
+            ) {
+                Icon(Icons.Default.ArrowUpward, "Lên đầu")
+            }
+        }
+    }
+}
+```
+
+### Layout Inspector - Debug UI
+
+```kotlin
+// Mở Layout Inspector trong Android Studio:
+// View → Tool Windows → Layout Inspector
+
+// Chức năng:
+// 1. Xem cây View/Composable hierarchy
+// 2. Kiểm tra properties của từng element
+// 3. Tìm layout issues
+// 4. So sánh các recomposition
+```
+
+### Profile và Benchmark
+
+```kotlin
+// Macrobenchmark cho startup và scrolling
+@RunWith(AndroidJUnit4::class)
+class StartupBenchmark {
+    @get:Rule
+    val benchmarkRule = MacrobenchmarkRule()
+
+    @Test
+    fun startup() = benchmarkRule.measureRepeated(
+        packageName = "com.example.app",
+        metrics = listOf(StartupTimingMetric()),
+        iterations = 5,
+        startupMode = StartupMode.COLD
+    ) {
+        pressHome()
+        startActivityAndWait()
+    }
+}
+```
+
+### Image Loading Optimization
+
+```kotlin
+// Coil cho image loading hiệu quả
+AsyncImage(
+    model = ImageRequest.Builder(LocalContext.current)
+        .data(imageUrl)
+        .crossfade(true)
+        .size(300, 300) // Resize để tiết kiệm memory
+        .build(),
+    contentDescription = null,
+    modifier = Modifier.size(150.dp),
+    contentScale = ContentScale.Crop
+)
+
+// Preload images
+val imageLoader = ImageLoader.Builder(context)
+    .memoryCache {
+        MemoryCache.Builder(context)
+            .maxSizePercent(0.25) // 25% memory
+            .build()
+    }
+    .diskCache {
+        DiskCache.Builder()
+            .directory(context.cacheDir.resolve("image_cache"))
+            .maxSizePercent(0.02) // 2% disk
+            .build()
+    }
+    .build()
+```
+
+### LazyList Performance
+
+```kotlin
+// ❌ BAD: Không có key
+LazyColumn {
+    items(users) { user ->
+        UserCard(user)
+    }
+}
+
+// ✅ GOOD: Có key
+LazyColumn {
+    items(
+        items = users,
+        key = { it.id } // Giúp Compose track items
+    ) { user ->
+        UserCard(user)
+    }
+}
+
+// ✅ GOOD: Reuse modifier
+val itemModifier = remember {
+    Modifier
+        .fillMaxWidth()
+        .padding(16.dp)
+}
+
+LazyColumn {
+    items(users, key = { it.id }) { user ->
+        UserCard(user, modifier = itemModifier)
+    }
+}
+```
+
+### State Hoisting cho Performance
+
+```kotlin
+// ❌ BAD: State trong list item
+@Composable
+fun UserItem(user: User) {
+    var isSelected by remember { mutableStateOf(false) }
+    // Mỗi item có state riêng → nhiều allocations
+}
+
+// ✅ GOOD: State hoisted lên parent
+@Composable
+fun UserList(
+    users: List<User>,
+    selectedIds: Set<Int>,
+    onSelectionChange: (Int) -> Unit
+) {
+    LazyColumn {
+        items(users, key = { it.id }) { user ->
+            UserItem(
+                user = user,
+                isSelected = user.id in selectedIds,
+                onClick = { onSelectionChange(user.id) }
+            )
+        }
+    }
+}
+```
+
+### Avoid Overdraw
+
+```kotlin
+// ❌ BAD: Layer chồng chéo
+Box(
+    modifier = Modifier
+        .background(Color.White)  // Layer 1
+        .background(Color.Gray)   // Layer 2 chồng lên
+)
+
+// ✅ GOOD: Background một lần
+Box(
+    modifier = Modifier
+        .background(Color.Gray)
+)
+
+// Kiểm tra overdraw:
+// Settings → Developer Options → Debug GPU Overdraw
+```
+
+### Compose Compiler Metrics
+
+```bash
+# Thêm vào build.gradle.kts
+android {
+    buildTypes {
+        debug {
+            // Enable compiler metrics
+            kotlinOptions {
+                freeCompilerArgs += listOf(
+                    "-P",
+                    "plugin:androidx.compose.compiler.plugins.kotlin:reportsDestination=" +
+                    project.buildDir.absolutePath + "/compose_metrics"
+                )
+            }
+        }
+    }
+}
+```
+
+### Practical Tips
+
+```kotlin
+// 1. Lazy load data
+val data by produceState(initialValue = emptyList()) {
+    value = withContext(Dispatchers.IO) { repository.getData() }
+}
+
+// 2. Debounce search
+var searchQuery by remember { mutableStateOf("") }
+LaunchedEffect(searchQuery) {
+    delay(300) // Debounce 300ms
+    viewModel.search(searchQuery)
+}
+
+// 3. Stable classes
+@Stable
+class UiState<T>(
+    val data: T? = null,
+    val error: String? = null,
+    val isLoading: Boolean = false
+)
+
+// 4. Avoid recomposition scope expansion
+@Composable
+fun Optimized() {
+    val state by viewModel.state.collectAsState()
+    
+    // Chỉ recomposition phần cần thiết
+    Header() // Không phụ thuộc state
+    
+    Content(state) // Recomposition khi state thay đổi
+    
+    Footer() // Không phụ thuộc state
+}
+```
+
+### Mẹo thực tế
+
+> **💡 Tip**: Sử dụng Layout Inspector để debug recomposition. Nếu thấy quá nhiều recomposition, kiểm tra stable types và key cho lists.
+
+> **⚠️ Lưu ý**: `collectAsState()` trong Compose mặc định collect trên `Dispatchers.Main`. Không cần withContext khi collect.
+
+> **🎯 Best Practice**: Profile trên device thật, không phải emulator. Performance trên emulator không chính xác.

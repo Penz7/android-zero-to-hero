@@ -1,0 +1,343 @@
+## LazyColumn và LazyRow
+
+### LazyColumn - Danh sách dọc
+
+LazyColumn chỉ render các item đang hiển thị trên màn hình, giúp tối ưu hiệu suất với danh sách dài:
+
+```kotlin
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+
+@Composable
+fun DanhSachDonGian() {
+    val danhSach = listOf("Phở", "Bún chả", "Bánh mì", "Cơm tấm", "Hủ tiếu")
+    
+    LazyColumn {
+        // items - hiển thị từng phần tử trong danh sách
+        items(danhSach) { monAn ->
+            Text(
+                text = monAn,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            )
+        }
+    }
+}
+```
+
+### LazyColumn với Data Class
+
+```kotlin
+data class NguoiDung(
+    val id: Int,
+    val ten: String,
+    val email: String,
+    val avatarUrl: String
+)
+
+@Composable
+fun DanhSachNguoiDung(nguoiDungs: List<NguoiDung>) {
+    LazyColumn(
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // Header item
+        item {
+            Text(
+                text = "Danh sách người dùng",
+                style = MaterialTheme.typography.headlineMedium,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+        }
+        
+        // Danh sách items với key
+        items(
+            items = nguoiDungs,
+            key = { it.id } // Key giúp Compose identify items
+        ) { nguoiDung ->
+            CardNguoiDung(nguoiDung = nguoiDung)
+        }
+        
+        // Footer item
+        item {
+            Text(
+                text = "Tổng: ${nguoiDungs.size} người dùng",
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun CardNguoiDung(nguoiDung: NguoiDung) {
+    Card(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AsyncImage(
+                model = nguoiDung.avatarUrl,
+                contentDescription = "Avatar",
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Column {
+                Text(
+                    text = nguoiDung.ten,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = nguoiDung.email,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+```
+
+### LazyRow - Danh sách ngang
+
+```kotlin
+import androidx.compose.foundation.lazy.LazyRow
+
+@Composable
+fun DanhMucNgang(danhMucs: List<String>) {
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(danhMucs) { danhMuc ->
+            SuggestionChip(
+                onClick = { /* xử lý click */ },
+                label = { Text(danhMuc) }
+            )
+        }
+    }
+}
+```
+
+### Sticky Header
+
+```kotlin
+import androidx.compose.foundation.lazy.LazyListScope
+
+@Composable
+fun DanhSachTheoNhom(nhom: Map<String, List<String>>) {
+    LazyColumn {
+        nhom.forEach { (tenNhom, items) ->
+            // Sticky header cho mỗi nhóm
+            stickyHeader {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.surface
+                ) {
+                    Text(
+                        text = tenNhom,
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .background(MaterialTheme.colorScheme.surface)
+                    )
+                }
+            }
+            
+            items(items) { item ->
+                Text(
+                    text = item,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+            }
+        }
+    }
+}
+```
+
+### Infinite Scroll - Tải thêm dữ liệu
+
+```kotlin
+@Composable
+fun DanhSachVoHan(
+    items: List<Item>,
+    onLoadMore: () -> Unit,
+    isLoading: Boolean
+) {
+    LazyColumn {
+        items(
+            items = items,
+            key = { it.id }
+        ) { item ->
+            ItemCard(item)
+        }
+        
+        // Hiển thị loading ở cuối danh sách
+        if (isLoading) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+        }
+    }
+    
+    // Detect khi cuộn đến cuối
+    val listState = rememberLazyListState()
+    
+    LaunchedEffect(listState) {
+        snapshotFlow { 
+            val layoutInfo = listState.layoutInfo
+            val totalItems = layoutInfo.totalItemsCount
+            val lastVisibleItem = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            lastVisibleItem >= totalItems - 3 // Load khi còn 3 items
+        }
+            .distinctUntilChanged()
+            .collect { shouldLoad ->
+                if (shouldLoad) onLoadMore()
+            }
+    }
+}
+```
+
+### Swipe to Delete
+
+```kotlin
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+
+@Composable
+fun ItemCoTheXoa(
+    item: String,
+    onDelete: () -> Unit
+) {
+    var showConfirmDialog by remember { mutableStateOf(false) }
+    
+    SwipeToDismissBox(
+        state = rememberSwipeToDismissBoxState(
+            confirmValueChange = { value ->
+                if (value == SwipeToDismissBoxValue.EndToStart) {
+                    showConfirmDialog = true
+                    false // Không dismiss ngay
+                } else false
+            }
+        ),
+        backgroundContent = {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Red)
+                    .padding(16.dp),
+                contentAlignment = Alignment.CenterEnd
+            ) {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = "Xóa",
+                    tint = Color.White
+                )
+            }
+        },
+        content = {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = item,
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
+        }
+    )
+    
+    if (showConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showConfirmDialog = false },
+            title = { Text("Xác nhận xóa") },
+            text = { Text("Bạn có chắc muốn xóa?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onDelete()
+                    showConfirmDialog = false
+                }) { Text("Xóa") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showConfirmDialog = false }) { Text("Hủy") }
+            }
+        )
+    }
+}
+```
+
+### Performance Tips
+
+```kotlin
+// ❌ Tránh: Tạo object mới trong lambda
+LazyColumn {
+    items(items) { item ->
+        // Mỗi recomposition sẽ tạo modifier mới
+        Text(modifier = Modifier.padding(16.dp), text = item.name)
+    }
+}
+
+// ✅ Tốt hơn: Reuse modifier
+val itemModifier = Modifier
+    .fillMaxWidth()
+    .padding(16.dp)
+
+LazyColumn {
+    items(items) { item ->
+        Text(modifier = itemModifier, text = item.name)
+    }
+}
+
+// ✅ Sử dụng key để tránh recomposition không cần thiết
+LazyColumn {
+    items(
+        items = users,
+        key = { it.id } // Compose biết item nào đã thay đổi
+    ) { user ->
+        UserCard(user)
+    }
+}
+```
+
+### LazyVerticalGrid
+
+```kotlin
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.items
+
+@Composable
+fun LuoiSanPham(sanPhams: List<SanPham>) {
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(2), // 2 cột cố định
+        // Hoặc: columns = GridCells.Adaptive(minSize = 150.dp)
+        contentPadding = PaddingValues(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(
+            items = sanPhams,
+            key = { it.id }
+        ) { sanPham ->
+            SanPhamCard(sanPham)
+        }
+    }
+}
+```
+
+### Mẹo thực tế
+
+> **💡 Tip**: Luôn cung cấp `key` cho items trong LazyColumn/LazyRow. Điều này giúp Compose tối ưu animations và tránh recomposition không cần thiết.
+
+> **⚠️ Lưu ý**: Không nên sử dụng `Column` với `Modifier.verticalScroll()` cho danh sách dài. Hãy luôn dùng `LazyColumn` vì nó chỉ render items đang hiển thị.
+
+> **🎯 Best Practice**: Đặt các modifiers chung cho item ở ngoài lambda để tránh tạo mới mỗi lần recomposition.

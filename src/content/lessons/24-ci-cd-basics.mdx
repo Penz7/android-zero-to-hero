@@ -1,0 +1,377 @@
+## CI/CD - Continuous Integration & Continuous Deployment
+
+### GitHub Actions Workflow
+
+```yaml
+# .github/workflows/android.yml
+name: Android CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+    
+    - name: Cache Gradle packages
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: ${{ runner.os }}-gradle-
+    
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+    
+    - name: Run lint
+      run: ./gradlew lint
+    
+    - name: Run unit tests
+      run: ./gradlew test
+    
+    - name: Build debug APK
+      run: ./gradlew assembleDebug
+    
+    - name: Upload APK
+      uses: actions/upload-artifact@v3
+      with:
+        name: app-debug
+        path: app/build/outputs/apk/debug/*.apk
+```
+
+### Complete CI/CD Pipeline
+
+```yaml
+name: Android CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  JAVA_VERSION: '17'
+
+jobs:
+  # Job 1: Lint và Test
+  test:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup JDK
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: 'temurin'
+    
+    - name: Cache
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: gradle-${{ hashFiles('**/*.gradle*') }}
+    
+    - name: Run ktlint
+      run: ./gradlew ktlintCheck
+    
+    - name: Run lint
+      run: ./gradlew lint
+    
+    - name: Run unit tests
+      run: ./gradlew test --stacktrace
+    
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results
+        path: app/build/reports/tests/
+  
+  # Job 2: Build APK
+  build:
+    name: Build APK
+    needs: test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup JDK
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: 'temurin'
+    
+    - name: Build debug APK
+      run: ./gradlew assembleDebug
+    
+    - name: Upload debug APK
+      uses: actions/upload-artifact@v3
+      with:
+        name: app-debug
+        path: app/build/outputs/apk/debug/app-debug.apk
+    
+    - name: Build release APK
+      if: github.ref == 'refs/heads/main'
+      run: ./gradlew assembleRelease
+    
+    - name: Upload release APK
+      if: github.ref == 'refs/heads/main'
+      uses: actions/upload-artifact@v3
+      with:
+        name: app-release
+        path: app/build/outputs/apk/release/app-release-unsigned.apk
+  
+  # Job 3: Deploy to Play Store
+  deploy:
+    name: Deploy to Play Store
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download APK
+      uses: actions/download-artifact@v3
+      with:
+        name: app-release
+    
+    - name: Deploy to Play Store
+      uses: r0adkll/upload-google-play@v1
+      with:
+        serviceAccountJsonPlainText: ${{ secrets.PLAY_STORE_SERVICE_ACCOUNT }}
+        packageName: com.example.myapp
+        releaseFiles: app-release-unsigned.apk
+        track: internal
+        status: completed
+```
+
+### Ktlint Configuration
+
+```kotlin
+// build.gradle (project)
+plugins {
+    id("org.jlleitschuh.gradle.ktlint") version "11.6.1"
+}
+
+// build.gradle (app)
+ktlint {
+    version.set("1.0.1")
+    ignoreFailures.set(false)
+    enableExperimentalRules.set(true)
+}
+```
+
+### SonarQube Integration
+
+```yaml
+# .github/workflows/sonar.yml
+name: SonarQube Analysis
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  sonar:
+    name: SonarQube
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup JDK
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+    
+    - name: Cache SonarQube packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.sonar/cache
+        key: ${{ runner.os }}-sonar
+    
+    - name: Run SonarQube analysis
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      run: |
+        ./gradlew sonarqube \
+          -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
+          -Dsonar.login=$SONAR_TOKEN
+```
+
+### Environment Secrets
+
+```yaml
+# Secrets cần thiết trong GitHub:
+# 1. PLAY_STORE_SERVICE_ACCOUNT - JSON key của service account
+# 2. KEYSTORE_PASSWORD - Password của keystore
+# 3. KEY_ALIAS - Alias của key trong keystore
+# 4. KEY_PASSWORD - Password của key
+# 5. SONAR_TOKEN - Token cho SonarQube
+
+# Truy cập secrets trong workflow:
+- name: Decode keystore
+  run: echo ${{ secrets.KEYSTORE_BASE64 }} | base64 --decode > app/release.keystore
+```
+
+### Fastlane Integration
+
+```ruby
+# fastlane/Fastfile
+default_platform(:android)
+
+platform :android do
+  desc "Run all tests"
+  lane :test do
+    gradle(task: "test")
+  end
+
+  desc "Build and deploy to Play Store"
+  lane :deploy do |options|
+    gradle(task: "bundleRelease")
+    
+    upload_to_play_store(
+      track: options[:track] || 'internal',
+      aab: 'app/build/outputs/bundle/release/app-release.aab'
+    )
+  end
+
+  desc "Deploy beta version"
+  lane :beta do
+    test
+    deploy(track: 'beta')
+  end
+
+  desc "Deploy production version"
+  lane :production do
+    test
+    deploy(track: 'production')
+  end
+end
+```
+
+### Build Variants trong CI/CD
+
+```kotlin
+// build.gradle (app)
+android {
+    flavorDimensions += "environment"
+    
+    productFlavors {
+        create("dev") {
+            dimension = "environment"
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+        }
+        create("staging") {
+            dimension = "environment"
+            applicationIdSuffix = ".staging"
+            versionNameSuffix = "-staging"
+        }
+        create("production") {
+            dimension = "environment"
+        }
+    }
+}
+```
+
+### Matrix Testing - Test trên nhiều version
+
+```yaml
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        api-level: [28, 29, 30, 31, 33, 34]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Run tests on API ${{ matrix.api-level }}
+      uses: reactivecircus/android-emulator-runner@v2
+      with:
+        api-level: ${{ matrix.api-level }}
+        arch: x86_64
+        script: ./gradlew connectedCheck
+```
+
+### Code Coverage Report
+
+```yaml
+- name: Generate coverage report
+  run: ./gradlew jacocoTestReport
+
+- name: Upload coverage to Codecov
+  uses: codecov/codecov-action@v3
+  with:
+    files: app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
+    fail_ci_if_error: true
+```
+
+### Build Notifications
+
+```yaml
+- name: Notify on Slack
+  if: always()
+  uses: 8398a7/action-slack@v3
+  with:
+    status: ${{ job.status }}
+    fields: repo,message,commit,author,action,eventName,workflow
+  env:
+    SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+```
+
+### Caching Strategies
+
+```yaml
+- name: Cache Gradle
+  uses: actions/cache@v3
+  with:
+    path: |
+      ~/.gradle/caches
+      ~/.gradle/wrapper
+    key: gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+    restore-keys: gradle-
+
+- name: Cache AVD
+  uses: actions/cache@v3
+  with:
+    path: |
+      ~/.android/avd/*
+      ~/.android/adb*
+    key: avd-${{ matrix.api-level }}
+```
+
+### Mẹo thực tế
+
+> **💡 Tip**: Bắt đầu với pipeline đơn giản (lint → test → build), sau đó mở rộng dần khi cần thiết.
+
+> **⚠️ Lưu ý**: Không bao giờ commit secrets vào repository. Sử dụng GitHub Secrets hoặc environment variables.
+
+> **🎯 Best Practice**: Chạy lint và test trên mỗi PR. Chỉ deploy khi merge vào main branch. Sử dụng environment protection rules để bảo vệ production.

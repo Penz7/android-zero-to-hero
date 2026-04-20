@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && npx pagefind --site out --output-path _pagefind",
     "start": "next start",
     "lint": "eslint"
   },
@@ -26,8 +26,10 @@
     "gray-matter": "^4.0.3",
     "lucide-react": "^1.8.0",
     "next": "16.2.4",
+    "pagefind": "^1.5.2",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "react-markdown": "^10.1.0",
     "reading-time": "^1.5.0",
     "rehype-autolink-headings": "^7.1.0",
     "rehype-pretty-code": "^0.14.3",

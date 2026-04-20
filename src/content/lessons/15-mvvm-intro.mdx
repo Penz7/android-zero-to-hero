@@ -1,0 +1,215 @@
+## MVVM Architecture
+
+### Separation of Concerns - Tách biệt trách nhiệm
+
+MVVM giúp chia ứng dụng thành các phần riêng biệt, mỗi phần có trách nhiệm rõ ràng:
+
+```
+┌─────────────────────────────────────────┐
+│           Presentation Layer            │
+│  ┌─────────┐     ┌─────────────────┐   │
+│  │   View  │────▶│    ViewModel    │   │
+│  └─────────┘     └────────┬────────┘   │
+├────────────────────────────┼────────────┤
+│           Domain Layer     │            │
+│  ┌─────────────────────────▼─────────┐  │
+│  │           Use Cases               │  │
+│  └─────────────────────────┬─────────┘  │
+├────────────────────────────┼────────────┤
+│           Data Layer       │            │
+│  ┌─────────────────────────▼─────────┐  │
+│  │         Repository                │  │
+│  │    ┌───────────┬───────────┐      │  │
+│  │    │  Local    │  Remote   │      │  │
+│  │    │ (Room)    │(Retrofit) │      │  │
+│  │    └───────────┴───────────┘      │  │
+│  └───────────────────────────────────┘  │
+└─────────────────────────────────────────┘
+```
+
+### Model - Data Layer
+
+```kotlin
+// Entity - dữ liệu trong database
+@Entity(tableName = "users")
+data class UserEntity(
+    @PrimaryKey val id: Int,
+    @ColumnInfo(name = "name") val name: String,
+    @ColumnInfo(name = "email") val email: String
+)
+
+// Domain Model - dữ liệu sử dụng trong business logic
+data class User(
+    val id: Int,
+    val name: String,
+    val email: String
+)
+
+// Mapper - chuyển đổi giữa các kiểu dữ liệu
+fun UserEntity.toDomain(): User = User(id, name, email)
+fun User.toEntity(): UserEntity = UserEntity(id, name, email)
+```
+
+### View - UI Layer
+
+```kotlin
+// View chỉ hiển thị dữ liệu và gửi events lên ViewModel
+@Composable
+fun UserScreen(viewModel: UserViewModel = viewModel()) {
+    // Collect state từ ViewModel
+    val uiState by viewModel.uiState.collectAsState()
+    
+    when (val state = uiState) {
+        is UserUiState.Loading -> LoadingIndicator()
+        is UserUiState.Success -> UserList(
+            users = state.users,
+            onUserClick = { viewModel.onUserClick(it) }
+        )
+        is UserUiState.Error -> ErrorMessage(
+            message = state.message,
+            onRetry = { viewModel.loadUsers() }
+        )
+    }
+}
+```
+
+### ViewModel - Business Logic
+
+```kotlin
+// UiState - trạng thái UI
+sealed class UserUiState {
+    object Loading : UserUiState()
+    data class Success(val users: List<User>) : UserUiState()
+    data class Error(val message: String) : UserUiState()
+}
+
+// ViewModel
+class UserViewModel @Inject constructor(
+    private val getUsersUseCase: GetUsersUseCase
+) : ViewModel() {
+    
+    // StateFlow để UI collect
+    private val _uiState = MutableStateFlow<UserUiState>(UserUiState.Loading)
+    val uiState: StateFlow<UserUiState> = _uiState.asStateFlow()
+    
+    init {
+        loadUsers()
+    }
+    
+    fun loadUsers() {
+        viewModelScope.launch {
+            _uiState.value = UserUiState.Loading
+            try {
+                val users = getUsersUseCase()
+                _uiState.value = UserUiState.Success(users)
+            } catch (e: Exception) {
+                _uiState.value = UserUiState.Error(e.message ?: "Lỗi không xác định")
+            }
+        }
+    }
+    
+    fun onUserClick(user: User) {
+        // Xử lý sự kiện click
+    }
+}
+```
+
+### Data Flow trong MVVM
+
+```
+User Action → View → ViewModel → UseCase → Repository → Data Source
+                                      ↑                      │
+                                      │                      │
+    UI Update ← View ← ViewModel ← UseCase ← Repository ←──┘
+```
+
+```kotlin
+// Flow dữ liệu trong MVVM
+
+// 1. User nhấn nút "Tải lại"
+@Composable
+fun UserScreen(viewModel: UserViewModel = viewModel()) {
+    Button(onClick = { viewModel.loadUsers() }) {
+        Text("Tải lại")
+    }
+}
+
+// 2. ViewModel gọi UseCase
+class UserViewModel(private val getUsersUseCase: GetUsersUseCase) : ViewModel() {
+    fun loadUsers() {
+        viewModelScope.launch {
+            val result = getUsersUseCase()
+            _uiState.value = result
+        }
+    }
+}
+
+// 3. UseCase gọi Repository
+class GetUsersUseCase @Inject constructor(
+    private val userRepository: UserRepository
+) {
+    suspend operator fun invoke(): List<User> {
+        return userRepository.getUsers()
+    }
+}
+
+// 4. Repository lấy dữ liệu từ nhiều nguồn
+class UserRepositoryImpl @Inject constructor(
+    private val userDao: UserDao,
+    private val apiService: ApiService
+) : UserRepository {
+    override suspend fun getUsers(): List<User> {
+        return try {
+            // Thử lấy từ API
+            val remoteUsers = apiService.getUsers()
+            // Cache vào database
+            userDao.insertAll(remoteUsers.map { it.toEntity() })
+            remoteUsers
+        } catch (e: Exception) {
+            // Fallback về local database
+            userDao.getAll().map { it.toDomain() }
+        }
+    }
+}
+```
+
+### Benefits của MVVM
+
+```kotlin
+// 1. Testable - có thể test ViewModel độc lập
+class UserViewModelTest {
+    @Test
+    fun `loadUsers should update state to Success`() = runTest {
+        val fakeRepo = FakeUserRepository()
+        val viewModel = UserViewModel(GetUsersUseCase(fakeRepo))
+        
+        viewModel.loadUsers()
+        
+        assertTrue(viewModel.uiState.value is UserUiState.Success)
+    }
+}
+
+// 2. Reusable - ViewModel có thể dùng với nhiều View khác nhau
+// Activity, Fragment, Composable đều có thể dùng cùng 1 ViewModel
+
+// 3. Lifecycle-aware - ViewModel sống qua configuration changes
+// Khi xoay màn hình, ViewModel không bị recreate
+
+// 4. Single source of truth - StateFlow đảm bảo UI luôn hiển thị data mới nhất
+```
+
+### MVVM vs MVC vs MVP
+
+| Pattern | View | Logic | Data |
+|---------|------|-------|------|
+| MVC | XML + Activity | Controller | Model |
+| MVP | XML + Fragment | Presenter | Model |
+| MVVM | Compose | ViewModel | Repository + UseCase |
+
+### Mẹo thực tế
+
+> **💡 Tip**: Luôn giữ ViewModel "clean" - không import Android UI classes (View, Context, etc.). Điều này giúp ViewModel dễ test hơn.
+
+> **⚠️ Lưu ý**: Không nên truyền Context vào ViewModel. Nếu cần Context, hãy sử dụng AndroidViewModel hoặc inject Application.
+
+> **🎯 Best Practice**: Sử dụng Sealed Class cho UI State để đảm bảo tất cả các trạng thái UI đều được xử lý (compiler sẽ cảnh báo nếu thiếu when branch).

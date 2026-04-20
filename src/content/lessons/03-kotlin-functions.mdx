@@ -1,0 +1,163 @@
+## Functions, Lambda & Higher-order Functions
+
+### Hàm cơ bản trong Kotlin
+
+Hàm trong Kotlin được khai báo bằng từ khóa `fun`:
+
+```kotlin
+// Hàm đơn giản không có tham số và không trả về giá trị
+fun xinChao() {
+    println("Xin chào!")
+}
+
+// Hàm có tham số và trả về giá trị
+fun cong(a: Int, b: Int): Int {
+    return a + b
+}
+
+// Hàm một dòng - Expression body
+fun congNganGon(a: Int, b: Int) = a + b
+
+// Hàm trả về Unit (tương đương void)
+fun inThongBao(ten: String): Unit {
+    println("Xin chào, $ten!")
+}
+```
+
+### Default Values & Named Arguments
+
+```kotlin
+// Tham số mặc định (default values)
+fun taoEmail(
+    tenNguoiDung: String,
+    mien: String = "gmail.com"  // Giá trị mặc định
+): String {
+    return "$tenNguoiDung@$mien"
+}
+
+// Named Arguments - gọi hàm với tên tham số
+fun main() {
+    // Gọi bình thường
+    val email1 = taoEmail("minhtuan")
+    println(email1) // minhtuan@gmail.com
+    
+    // Override giá trị mặc định
+    val email2 = taoEmail("minhtuan", "company.vn")
+    println(email2) // minhtuan@company.vn
+    
+    // Named arguments - không cần đúng thứ tự
+    val email3 = taoEmail(mien = "yahoo.com", tenNguoiDung = "anna")
+    println(email3) // anna@yahoo.com
+}
+```
+
+### Vararg - Tham số số lượng biến đổi
+
+```kotlin
+// Hàm nhận số lượng tham số không xác định
+fun tinhTong(vararg soNguyen: Int): Int {
+    return soNguyen.sum()
+}
+
+fun main() {
+    println(tinhTong(1, 2, 3))       // 6
+    println(tinhTong(10, 20, 30, 40)) // 100
+}
+```
+
+### Lambda Expressions
+
+Lambda là một hàm vô danh, có thể gán vào biến hoặc truyền như tham số:
+
+```kotlin
+fun main() {
+    // Lambda cơ bản
+    val tinhBinhPhuong: (Int) -> Int = { x -> x * x }
+    println(tinhBinhPhuong(5)) // 25
+    
+    // Lambda với nhiều tham số
+    val congHaiSo: (Int, Int) -> Int = { a, b -> a + b }
+    println(congHaiSo(3, 4)) // 7
+    
+    // Lambda mặc định: it (khi chỉ có 1 tham số)
+    val nhanDoi: (Int) -> Int = { it * 2 }
+    println(nhanDoi(7)) // 14
+    
+    // Lambda cuối cùng có thể ra ngoài ngoặc
+    val danhSach = listOf(1, 2, 3, 4, 5)
+    val soChan = danhSach.filter { it % 2 == 0 }
+    println(soChan) // [2, 4]
+}
+```
+
+### Higher-order Functions
+
+Higher-order function là hàm nhận hàm khác làm tham số hoặc trả về hàm:
+
+```kotlin
+// Higher-order function: nhận lambda làm tham số
+fun thucThiHaiLan(action: () -> Unit) {
+    action()
+    action()
+}
+
+// Higher-order function: trả về hàm
+fun taoPhepTinh(phepToan: String): (Int, Int) -> Int {
+    return when (phepToan) {
+        "cong" -> { a, b -> a + b }
+        "tru" -> { a, b -> a - b }
+        "nhan" -> { a, b -> a * b }
+        else -> { _, _ -> 0 }
+    }
+}
+
+fun main() {
+    // Sử dụng higher-order function
+    thucThiHaiLan {
+        println("Xin chào!")
+    }
+    
+    // Nhận hàm từ higher-order function
+    val phepCong = taoPhepTinh("cong")
+    println(phepCong(10, 5)) // 15
+}
+```
+
+### Scope Functions: let, run, with, apply, also
+
+```kotlin
+data class User(var name: String = "", var age: Int = 0)
+
+fun main() {
+    // apply - cấu hình đối tượng, trả về chính đối tượng đó
+    val user = User().apply {
+        name = "Minh"     // this.name = "Minh"
+        age = 25          // this.age = 25
+    }
+    
+    // let - xử lý nullable, trả về kết quả của lambda
+    val tenHoa: String? = "minh"
+    val ketQua = tenHoa?.let {
+        println("Tên: $it")
+        it.uppercase() // Trả về "MINH"
+    }
+    
+    // also - xử lý thêm, trả về đối tượng gốc
+    val so = listOf(1, 2, 3).also {
+        println("Danh sách: $it")
+    }
+    
+    // run - thực thi khối code, trả về kết quả cuối
+    val dienTich = run {
+        val chieuDai = 10
+        val chieuRong = 5
+        chieuDai * chieuRong // 50
+    }
+}
+```
+
+### Mẹo thực tế
+
+> **💡 Tip**: Ưu tiên sử dụng `apply` khi cần cấu hình đối tượng mới tạo. Sử dụng `let` với safe call `?.` để xử lý nullable an toàn.
+
+> **⚠️ Lưu ý**: Trong Android, scope functions rất phổ biến. Ví dụ: `view.apply { visibility = View.VISIBLE }` hoặc `intent?.let { startActivity(it) }`

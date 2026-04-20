@@ -1,0 +1,263 @@
+## Coroutines & Flow
+
+### Suspend Functions
+
+Suspend function là hàm có thể bị tạm dừng và tiếp tục mà không block thread:
+
+```kotlin
+// suspend function - có thể tạm dừng thực thi
+suspend fun layDuLieuTuApi(): String {
+    delay(1000) // Tạm dừng 1 giây, không block thread
+    return "Dữ liệu từ API"
+}
+
+// Sử dụng suspend function
+fun main() = runBlocking {
+    println("Bắt đầu...")
+    val ketQua = layDuLieuTuApi() // Chờ kết quả
+    println(ketQua)
+}
+```
+
+### launch và async/await
+
+```kotlin
+import kotlinx.coroutines.*
+
+fun main() = runBlocking {
+    // launch - chạy coroutine không cần kết quả
+    val job = launch {
+        delay(1000)
+        println("Job hoàn thành")
+    }
+    
+    // async - chạy coroutine và trả về kết quả
+    val deferred = async {
+        delay(1000)
+        42 // Kết quả trả về
+    }
+    
+    val ketQua = deferred.await() // Chờ kết quả
+    println("Kết quả: $ketQua")
+    
+    // Chạy nhiều coroutines song song
+    val deferreds = listOf(
+        async { fetchUser(1) },
+        async { fetchUser(2) },
+        async { fetchUser(3) }
+    )
+    
+    val users = deferreds.awaitAll() // Chờ tất cả hoàn thành
+    println("Users: $users")
+}
+```
+
+### withContext - Chuyển đổi Dispatcher
+
+```kotlin
+class UserRepository {
+    // withContext chuyển coroutine sang dispatcher khác
+    suspend fun layNguoiDung(): List<User> = withContext(Dispatchers.IO) {
+        // Chạy trên IO thread để gọi API/đọc database
+        apiService.getUsers()
+    }
+    
+    suspend fun xuLyDuLieu(users: List<User>): List<String> = withContext(Dispatchers.Default) {
+        // Chạy trên Default thread để xử lý dữ liệu
+        users.map { it.name.uppercase() }
+    }
+}
+
+// Dispatchers trong Android
+// Dispatchers.Main - UI thread, cập nhật UI
+// Dispatchers.IO - I/O operations (network, database)
+// Dispatchers.Default - CPU-intensive tasks (sorting, filtering)
+// Dispatchers.Unconfined - không confine dispatcher cụ thể
+```
+
+### Flow - Reactive Streams
+
+Flow là luồng dữ liệu có thể emit nhiều giá trị theo thời gian:
+
+```kotlin
+import kotlinx.coroutines.flow.*
+
+// Tạo Flow
+fun laySoNgauNhien(): Flow<Int> = flow {
+    repeat(10) {
+        delay(500) // Giả lập delay
+        emit(Random.nextInt(100)) // Phát ra giá trị
+    }
+}
+
+// Collect Flow
+fun main() = runBlocking {
+    laySoNgauNhien()
+        .filter { it > 50 }        // Lọc
+        .map { it * 2 }            // Biến đổi
+        .take(5)                   // Lấy 5 giá trị đầu
+        .collect { value ->        // Thu thập
+            println("Giá trị: $value")
+        }
+}
+```
+
+### Flow Operators
+
+```kotlin
+fun viDuFlowOperators() = runBlocking {
+    val flow = flowOf(1, 2, 3, 4, 5)
+    
+    // filter - lọc phần tử
+    flow.filter { it % 2 == 0 }
+        .collect { println(it) } // 2, 4
+    
+    // map - biến đổi
+    flow.map { it * it }
+        .collect { println(it) } // 1, 4, 9, 16, 25
+    
+    // transform - biến đổi linh hoạt
+    flow.transform {
+        emit(it)
+        emit(it * 10)
+    }.collect { println(it) } // 1, 10, 2, 20, 3, 30...
+    
+    // take - lấy n phần tử đầu
+    flow.take(3)
+        .collect { println(it) } // 1, 2, 3
+    
+    // reduce - gộp thành 1 giá trị
+    val sum = flow.reduce { acc, value -> acc + value }
+    println("Tổng: $sum") // 15
+    
+    // fold - gộp với giá trị ban đầu
+    val result = flow.fold(100) { acc, value -> acc + value }
+    println("Kết quả: $result") // 115
+}
+```
+
+### StateFlow trong Coroutines
+
+```kotlin
+class CounterRepository {
+    // StateFlow - giữ giá trị hiện tại
+    private val _count = MutableStateFlow(0)
+    val count: StateFlow<Int> = _count.asStateFlow()
+    
+    fun increment() {
+        _count.value++
+    }
+    
+    // Tạo StateFlow từ Flow
+    val doubledCount: StateFlow<Int> = _count
+        .map { it * 2 }
+        .stateIn(
+            scope = CoroutineScope(Dispatchers.Default),
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = 0
+        )
+}
+```
+
+### Flow trong ViewModel
+
+```kotlin
+class ProductViewModel @Inject constructor(
+    private val repository: ProductRepository
+) : ViewModel() {
+    
+    private val _uiState = MutableStateFlow<ProductUiState>(ProductUiState.Loading)
+    val uiState: StateFlow<ProductUiState> = _uiState.asStateFlow()
+    
+    // Combine Flow từ nhiều nguồn
+    val filteredProducts: StateFlow<List<Product>> = combine(
+        repository.getProducts(),          // Flow<List<Product>>
+        _searchQuery,                      // StateFlow<String>
+        _selectedCategory                  // StateFlow<String?>
+    ) { products, query, category ->
+        products
+            .filter { it.name.contains(query, ignoreCase = true) }
+            .filter { category == null || it.category == category }
+            .sortedBy { it.name }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+}
+```
+
+### Exception Handling trong Coroutines
+
+```kotlin
+class DataViewModel : ViewModel() {
+    // Cách 1: try-catch
+    fun loadData() {
+        viewModelScope.launch {
+            try {
+                val data = repository.fetchData()
+                _uiState.value = UiState.Success(data)
+            } catch (e: IOException) {
+                _uiState.value = UiState.Error("Lỗi mạng: ${e.message}")
+            } catch (e: Exception) {
+                _uiState.value = UiState.Error("Lỗi: ${e.message}")
+            }
+        }
+    }
+    
+    // Cách 2: CoroutineExceptionHandler
+    private val exceptionHandler = CoroutineExceptionHandler { _, exception ->
+        _uiState.value = UiState.Error(exception.message ?: "Lỗi không xác định")
+    }
+    
+    fun loadDataSafely() {
+        viewModelScope.launch(exceptionHandler) {
+            val data = repository.fetchData()
+            _uiState.value = UiState.Success(data)
+        }
+    }
+}
+```
+
+### Practical Example: Data Loading with Flow
+
+```kotlin
+class UserRepository @Inject constructor(
+    private val apiService: ApiService,
+    private val userDao: UserDao
+) {
+    // Offline-first pattern
+    fun getUsers(): Flow<Resource<List<User>>> = flow {
+        emit(Resource.Loading())
+        
+        // Lấy dữ liệu từ cache
+        val cachedUsers = userDao.getAll().map { it.toDomain() }
+        emit(Resource.Success(cachedUsers))
+        
+        try {
+            // Fetch từ API
+            val remoteUsers = apiService.getUsers()
+            // Cập nhật cache
+            userDao.deleteAll()
+            userDao.insertAll(remoteUsers.map { it.toEntity() })
+            // Emit dữ liệu mới
+            emit(Resource.Success(remoteUsers))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Lỗi tải dữ liệu", cachedUsers))
+        }
+    }.flowOn(Dispatchers.IO)
+}
+
+sealed class Resource<T>(
+    val data: T? = null,
+    val message: String? = null
+) {
+    class Loading<T> : Resource<T>()
+    class Success<T>(data: T) : Resource<T>(data = data)
+    class Error<T>(message: String, data: T? = null) : Resource<T>(data = data, message = message)
+}
+```
+
+### Mẹo thực tế
+
+> **💡 Tip**: Sử dụng `flowOn(Dispatchers.IO)` để chạy upstream trên IO thread, và collect trên Main thread để cập nhật UI.
+
+> **⚠️ Lưu ý**: Không nên tạo Flow mới trong mỗi recomposition. Sử dụng `remember` hoặc tạo Flow trong ViewModel.
+
+> **🎯 Best Practice**: Áp dụng Offline-first pattern - hiển thị dữ liệu cache ngay lập tức, sau đó cập nhật từ API. Người dùng không phải chờ đợi!

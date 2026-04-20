@@ -1,0 +1,359 @@
+## Clean Architecture
+
+### Kiến trúc Clean Architecture
+
+Clean Architecture chia ứng dụng thành các lớp với quy tắc phụ thuộc rõ ràng:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Presentation Layer                     │
+│  ┌─────────────┐    ┌──────────────────────────────┐   │
+│  │   Screens   │───▶│         ViewModels            │   │
+│  │  (Compose)  │    └──────────────────────────────┘   │
+│  └─────────────┘                                        │
+├─────────────────────────────────────────────────────────┤
+│                      Domain Layer                        │
+│  ┌─────────────────────────────────────────────────┐   │
+│  │  Entities (User, Product, Order...)              │   │
+│  │  Use Cases (GetUsers, CreateOrder...)            │   │
+│  │  Repository Interfaces                           │   │
+│  └─────────────────────────────────────────────────┘   │
+├─────────────────────────────────────────────────────────┤
+│                       Data Layer                         │
+│  ┌─────────────────────────────────────────────────┐   │
+│  │  Repository Implementations                      │   │
+│  │  Data Sources: Remote (API) + Local (Room)       │   │
+│  │  Mappers                                         │   │
+│  └─────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Domain Layer - Entities
+
+```kotlin
+// domain/model/User.kt
+data class User(
+    val id: Int,
+    val name: String,
+    val email: String,
+    val avatarUrl: String? = null
+)
+
+// domain/model/Product.kt
+data class Product(
+    val id: Int,
+    val name: String,
+    val price: Double,
+    val description: String
+)
+```
+
+### Domain Layer - Repository Interfaces
+
+```kotlin
+// domain/repository/UserRepository.kt
+interface UserRepository {
+    fun getUsers(): Flow<Resource<List<User>>>
+    suspend fun getUserById(id: Int): Resource<User>
+    suspend fun createUser(user: User): Resource<User>
+    suspend fun deleteUser(id: Int): Resource<Unit>
+}
+
+// domain/repository/ProductRepository.kt
+interface ProductRepository {
+    fun getProducts(category: String?): Flow<Resource<List<Product>>>
+    suspend fun getProductById(id: Int): Resource<Product>
+}
+```
+
+### Domain Layer - Use Cases
+
+```kotlin
+// domain/usecase/GetUsersUseCase.kt
+class GetUsersUseCase @Inject constructor(
+    private val userRepository: UserRepository
+) {
+    operator fun invoke(): Flow<Resource<List<User>>> {
+        return userRepository.getUsers()
+    }
+}
+
+// domain/usecase/GetUserDetailUseCase.kt
+class GetUserDetailUseCase @Inject constructor(
+    private val userRepository: UserRepository
+) {
+    suspend operator fun invoke(userId: Int): Resource<User> {
+        return userRepository.getUserById(userId)
+    }
+}
+
+// domain/usecase/CreateOrderUseCase.kt
+class CreateOrderUseCase @Inject constructor(
+    private val orderRepository: OrderRepository,
+    private val productRepository: ProductRepository
+) {
+    suspend operator fun invoke(
+        userId: Int,
+        productIds: List<Int>
+    ): Resource<Order> {
+        // Business logic
+        val products = productIds.map { id ->
+            productRepository.getProductById(id).getOrThrow()
+        }
+        val totalPrice = products.sumOf { it.price }
+        
+        if (totalPrice <= 0) {
+            return Resource.Error("Giỏ hàng trống")
+        }
+        
+        val order = Order(
+            userId = userId,
+            products = products,
+            totalPrice = totalPrice,
+            status = OrderStatus.PENDING
+        )
+        
+        return orderRepository.createOrder(order)
+    }
+}
+```
+
+### Data Layer - Data Sources
+
+```kotlin
+// data/remote/UserRemoteDataSource.kt
+class UserRemoteDataSource @Inject constructor(
+    private val apiService: ApiService
+) {
+    suspend fun getUsers(): List<UserDto> = apiService.getUsers()
+    suspend fun getUserById(id: Int): UserDto = apiService.getUserById(id)
+}
+
+// data/local/UserLocalDataSource.kt
+class UserLocalDataSource @Inject constructor(
+    private val userDao: UserDao
+) {
+    fun getUsers(): Flow<List<UserEntity>> = userDao.getAll()
+    suspend fun getUserById(id: Int): UserEntity? = userDao.getById(id)
+    suspend fun insertUsers(users: List<UserEntity>) = userDao.insertAll(users)
+    suspend fun deleteUser(id: Int) = userDao.deleteById(id)
+}
+```
+
+### Data Layer - DTOs và Mappers
+
+```kotlin
+// data/remote/dto/UserDto.kt
+data class UserDto(
+    val id: Int,
+    val name: String,
+    val email: String,
+    @Json(name = "avatar_url")
+    val avatarUrl: String?
+)
+
+// data/local/entity/UserEntity.kt
+@Entity(tableName = "users")
+data class UserEntity(
+    @PrimaryKey val id: Int,
+    val name: String,
+    val email: String,
+    val avatarUrl: String?
+)
+
+// data/mapper/UserMapper.kt
+fun UserDto.toDomain(): User = User(
+    id = id,
+    name = name,
+    email = email,
+    avatarUrl = avatarUrl
+)
+
+fun UserDto.toEntity(): UserEntity = UserEntity(
+    id = id,
+    name = name,
+    email = email,
+    avatarUrl = avatarUrl
+)
+
+fun UserEntity.toDomain(): User = User(
+    id = id,
+    name = name,
+    email = email,
+    avatarUrl = avatarUrl
+)
+```
+
+### Data Layer - Repository Implementation
+
+```kotlin
+// data/repository/UserRepositoryImpl.kt
+class UserRepositoryImpl @Inject constructor(
+    private val remoteDataSource: UserRemoteDataSource,
+    private val localDataSource: UserLocalDataSource
+) : UserRepository {
+    
+    override fun getUsers(): Flow<Resource<List<User>>> = flow {
+        emit(Resource.Loading())
+        
+        // Emit cached data
+        emitAll(localDataSource.getUsers().map { entities ->
+            Resource.Success(entities.map { it.toDomain() })
+        })
+        
+        // Fetch from remote
+        try {
+            val remoteUsers = remoteDataSource.getUsers()
+            localDataSource.insertUsers(remoteUsers.map { it.toEntity() })
+        } catch (e: Exception) {
+            emit(Resource.Error("Không thể cập nhật: ${e.message}"))
+        }
+    }.flowOn(Dispatchers.IO)
+    
+    override suspend fun getUserById(id: Int): Resource<User> {
+        return try {
+            // Try local first
+            val localUser = localDataSource.getUserById(id)
+            if (localUser != null) {
+                Resource.Success(localUser.toDomain())
+            } else {
+                // Fetch from remote
+                val remoteUser = remoteDataSource.getUserById(id)
+                localDataSource.insertUsers(listOf(remoteUser.toEntity()))
+                Resource.Success(remoteUser.toDomain())
+            }
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Lỗi không xác định")
+        }
+    }
+}
+```
+
+### Presentation Layer - ViewModel
+
+```kotlin
+// presentation/userlist/UserListViewModel.kt
+@HiltViewModel
+class UserListViewModel @Inject constructor(
+    private val getUsersUseCase: GetUsersUseCase,
+    private val deleteUserUseCase: DeleteUserUseCase
+) : ViewModel() {
+    
+    private val _uiState = MutableStateFlow<UserListUiState>(UserListUiState.Loading)
+    val uiState: StateFlow<UserListUiState> = _uiState.asStateFlow()
+    
+    init {
+        loadUsers()
+    }
+    
+    fun loadUsers() {
+        viewModelScope.launch {
+            getUsersUseCase().collect { resource ->
+                _uiState.value = when (resource) {
+                    is Resource.Loading -> UserListUiState.Loading
+                    is Resource.Success -> UserListUiState.Success(resource.data ?: emptyList())
+                    is Resource.Error -> UserListUiState.Error(resource.message ?: "Lỗi")
+                }
+            }
+        }
+    }
+    
+    fun deleteUser(userId: Int) {
+        viewModelScope.launch {
+            deleteUserUseCase(userId)
+        }
+    }
+}
+```
+
+### DI Module cho Clean Architecture
+
+```kotlin
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class DataModule {
+    
+    @Binds
+    @Singleton
+    abstract fun bindUserRepository(
+        impl: UserRepositoryImpl
+    ): UserRepository
+    
+    @Binds
+    @Singleton
+    abstract fun bindProductRepository(
+        impl: ProductRepositoryImpl
+    ): ProductRepository
+}
+```
+
+### Project Structure
+
+```
+app/src/main/java/com/example/app/
+├── data/
+│   ├── local/
+│   │   ├── dao/
+│   │   │   └── UserDao.kt
+│   │   ├── entity/
+│   │   │   └── UserEntity.kt
+│   │   └── AppDatabase.kt
+│   ├── remote/
+│   │   ├── api/
+│   │   │   └── ApiService.kt
+│   │   └── dto/
+│   │       └── UserDto.kt
+│   ├── mapper/
+│   │   └── UserMapper.kt
+│   └── repository/
+│       └── UserRepositoryImpl.kt
+├── domain/
+│   ├── model/
+│   │   └── User.kt
+│   ├── repository/
+│   │   └── UserRepository.kt
+│   └── usecase/
+│       ├── GetUsersUseCase.kt
+│       └── DeleteUserUseCase.kt
+├── presentation/
+│   ├── userlist/
+│   │   ├── UserListScreen.kt
+│   │   ├── UserListViewModel.kt
+│   │   └── UserListUiState.kt
+│   └── userdetail/
+│       ├── UserDetailScreen.kt
+│       └── UserDetailViewModel.kt
+└── di/
+    ├── AppModule.kt
+    ├── DataModule.kt
+    └── NetworkModule.kt
+```
+
+### Resource Class
+
+```kotlin
+sealed class Resource<T>(
+    val data: T? = null,
+    val message: String? = null
+) {
+    class Loading<T> : Resource<T>()
+    class Success<T>(data: T) : Resource<T>(data = data)
+    class Error<T>(message: String, data: T? = null) : Resource<T>(data = data, message = message)
+    
+    fun <R> map(transform: (T?) -> R?): Resource<R> {
+        return when (this) {
+            is Loading -> Loading()
+            is Success -> Success(transform(data)!!)
+            is Error -> Error(message ?: "Lỗi", transform(data))
+        }
+    }
+}
+```
+
+### Mẹo thực tế
+
+> **💡 Tip**: Bắt đầu với kiến trúc đơn giản, chỉ chia thành 2-3 layers. Khi dự án phát triển, có thể tách thêm các layers.
+
+> **⚠️ Lưu ý**: Domain Layer không được phụ thuộc vào Android framework hay bất kỳ thư viện nào. Đây là quy tắc quan trọng nhất!
+
+> **🎯 Best Practice**: Sử dụng Use Cases cho các business logic phức tạp. Đối với các thao tác CRUD đơn giản, có thể gọi Repository trực tiếp từ ViewModel.

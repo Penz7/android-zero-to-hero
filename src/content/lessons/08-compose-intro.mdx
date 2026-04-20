@@ -1,0 +1,200 @@
+## Jetpack Compose là gì?
+
+### Giới thiệu Jetpack Compose
+
+Jetpack Compose là toolkit UI hiện đại của Google cho Android. Thay vì sử dụng XML layouts, Compose dùng code Kotlin thuần để xây dựng giao diện:
+
+**Ưu điểm chính:**
+- **Declarative UI**: Khai báo UI dựa trên trạng thái (state-driven)
+- **Ít code hơn**: Giảm 50-70% lượng code so với XML
+- **Type-safe**: Compiler kiểm tra lỗi UI ngay khi build
+- **Live Preview**: Xem trước UI real-time trong Android Studio
+
+### Composable Function
+
+```kotlin
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+
+// @Composable đánh dấu hàm tạo UI
+@Composable
+fun XinChao() {
+    Text(text = "Xin chào Việt Nam!")
+}
+
+// Composable có thể nhận tham số
+@Composable
+fun XinChaoTen(ten: String) {
+    Text(text = "Xin chào, $ten!")
+}
+```
+
+### setContent trong Activity
+
+```kotlin
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.material3.MaterialTheme
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        
+        // setContent thay thế setContentView(R.layout.xxx)
+        setContent {
+            MaterialTheme {
+                // Gọi composable function
+                ManHinhChinh()
+            }
+        }
+    }
+}
+```
+
+### Các Composable cơ bản
+
+```kotlin
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
+
+@Composable
+fun ManHinhChinh() {
+    Column(modifier = Modifier.padding(16.dp)) {
+        // Text - hiển thị văn bản
+        Text(
+            text = "Tiêu đề",
+            style = MaterialTheme.typography.headlineMedium
+        )
+        
+        // Button - nút bấm
+        Button(onClick = { /* xử lý click */ }) {
+            Text("Nhấn vào đây")
+        }
+        
+        // Image - hình ảnh
+        Image(
+            painter = painterResource(id = R.drawable.logo),
+            contentDescription = "Logo ứng dụng"
+        )
+        
+        // TextField - ô nhập liệu
+        var text by remember { mutableStateOf("") }
+        TextField(
+            value = text,
+            onValueChange = { text = it },
+            label = { Text("Nhập tên") }
+        )
+    }
+}
+```
+
+### Preview trong Android Studio
+
+```kotlin
+import androidx.compose.ui.tooling.preview.Preview
+
+@Preview(
+    showBackground = true,
+    showSystemUi = true,
+    name = "Màn hình chính"
+)
+@Composable
+fun ManHinhChinhPreview() {
+    MaterialTheme {
+        ManHinhChinh()
+    }
+}
+
+// Preview với tham số
+@Preview(showBackground = true)
+@Composable
+fun XinChaoTenPreview() {
+    MaterialTheme {
+        XinChaoTen("Minh Tuấn")
+    }
+}
+```
+
+### State cơ bản trong Compose
+
+```kotlin
+import androidx.compose.runtime.*
+import androidx.compose.material3.*
+
+@Composable
+fun BoDem() {
+    // remember giữ giá trị qua các recomposition
+    var count by remember { mutableStateOf(0) }
+    
+    Column {
+        Text("Số lần nhấn: $count")
+        Button(onClick = { count++ }) {
+            Text("Tăng")
+        }
+    }
+}
+```
+
+### Material Theme cơ bản
+
+```kotlin
+import androidx.compose.material3.*
+import androidx.compose.foundation.isSystemInDarkTheme
+
+@Composable
+fun UngDungCuaToi(
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    content: @Composable () -> Unit
+) {
+    // Tự động sử dụng Material 3 theme
+    MaterialTheme(
+        colorScheme = if (darkTheme) darkColorScheme() else lightColorScheme(),
+        typography = Typography(),
+        content = content
+    )
+}
+```
+
+### Cấu trúc dự án Compose
+
+```
+app/
+├── src/main/java/com/example/ungdung/
+│   ├── ui/
+│   │   ├── theme/
+│   │   │   ├── Color.kt
+│   │   │   ├── Theme.kt
+│   │   │   └── Type.kt
+│   │   ├── screens/
+│   │   │   ├── HomeScreen.kt
+│   │   │   └── DetailScreen.kt
+│   │   └── components/
+│   │       ├── Button.kt
+│   │       └── Card.kt
+│   └── MainActivity.kt
+```
+
+### Compose vs XML Layout
+
+| Tính năng | XML Layout | Jetpack Compose |
+|-----------|-----------|-----------------|
+| Cú pháp | XML | Kotlin |
+| State management | Manual | Automatic |
+| Preview | Limited | Real-time |
+| Reusability | Custom Views | Composable functions |
+| Code size | Nhiều boilerplate | Ngắn gọn hơn |
+
+### Mẹo thực tế
+
+> **💡 Tip**: Bắt đầu với Material 3 components. Chúng đã được thiết kế tốt và tuân theo Material Design guidelines. Tùy chỉnh chỉ khi thực sự cần.
+
+> **⚠️ Lưu ý**: Composable functions có thể được gọi lại (recompose) rất nhiều lần. Không nên thực hiện các tác vụ nặng (như gọi API, đọc file) trực tiếp trong composable. Hãy dùng `LaunchedEffect` hoặc `DisposableEffect` cho các tác vụ side effect.
+
+> **🎯 Best Practice**: Đặt Preview ngay trong cùng file với Composable. Điều này giúp bạn xem trước UI nhanh chóng và cũng đóng vai trò như documentation.

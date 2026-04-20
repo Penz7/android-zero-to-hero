@@ -1,0 +1,329 @@
+## Deploy lên Play Store
+
+### Build Signed AAB
+
+```groovy
+// build.gradle (app)
+android {
+    signingConfigs {
+        create("release") {
+            storeFile = file("release-keystore.jks")
+            storePassword = System.getenv("KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("KEY_ALIAS")
+            keyPassword = System.getenv("KEY_PASSWORD")
+        }
+    }
+    
+    buildTypes {
+        release {
+            signingConfig = signingConfigs.getByName("release")
+            minifyEnabled = true
+            shrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+    }
+    
+    bundle {
+        language {
+            enableSplit = true
+        }
+        density {
+            enableSplit = true
+        }
+        abi {
+            enableSplit = true
+        }
+    }
+}
+```
+
+### Tạo Keystore
+
+```bash
+# Tạo keystore mới
+keytool -genkey -v -keystore release-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias release
+
+# Xem thông tin keystore
+keytool -list -v -keystore release-keystore.jks
+
+# Build signed AAB
+./gradlew bundleRelease
+
+# Output: app/build/outputs/bundle/release/app-release.aab
+```
+
+### Play Console Setup
+
+```
+1. Truy cập https://play.google.com/console
+2. Tạo Developer Account ($25 một lần)
+3. Tạo ứng dụng mới
+4. Điền thông tin:
+   - Tên ứng dụng (50 ký tự)
+   - Mô tả ngắn (80 ký tự)
+   - Mô tả đầy đủ (4000 ký tự)
+   - Screenshots (2-8 ảnh, 1080x1920 px)
+   - Icon ứng dụng (512x512 px)
+   - Feature graphic (1024x500 px)
+```
+
+### Store Listing Assets
+
+```kotlin
+// Yêu cầu assets cho Play Store:
+
+// 1. App icon
+// - 512x512 PNG
+// - Không có alpha channel
+// - Không có rounded corners (Google tự làm)
+
+// 2. Screenshots
+// - 2-8 ảnh per device type
+// - Phone: 1080x1920 hoặc 1080x2340
+// - Tablet: 1200x1920 hoặc 1600x2560
+// - Không có khung device
+
+// 3. Feature Graphic
+// - 1024x500 PNG hoặc JPG
+// - Quảng bá ứng dụng của bạn
+
+// 4. Video (tùy chọn)
+// - YouTube URL
+// - Hiển thị trên store listing
+```
+
+### App Content Declarations
+
+```
+Trong Play Console → App content:
+
+1. Privacy Policy
+   - URL bắt buộc nếu app xử lý user data
+   - Phải accessible publicly
+
+2. App Category
+   - Application type: App hoặc Game
+   - Category: chọn phù hợp
+
+3. Contact Details
+   - Email support
+   - Phone (tùy chọn)
+   - Website (tùy chọn)
+
+4. Content Rating
+   - Complete questionnaire
+   - Nhận rating tự động
+
+5. Target Audience
+   - Chọn age groups
+   - Có thể chọn "All ages"
+
+6. Data Safety
+   - Khai báo data collection
+   - Security practices
+   - Data sharing
+```
+
+### Version Management
+
+```kotlin
+// build.gradle (app)
+android {
+    defaultConfig {
+        versionCode 1        // Integer, tăng cho mỗi release
+        versionName "1.0.0"  // Semantic versioning
+    }
+}
+
+// Version naming convention:
+// MAJOR.MINOR.PATCH
+// 1.0.0 - First release
+// 1.0.1 - Bug fix
+// 1.1.0 - New feature
+// 2.0.0 - Breaking changes
+
+// Tự động tăng version
+import java.time.LocalDateTime
+
+def getVersionCode() {
+    return LocalDateTime.now().format("yyyyMMddHH").toInteger()
+}
+
+def getVersionName() {
+    return "1.0.${getVersionCode()}"
+}
+```
+
+### Release Tracks
+
+```
+Play Console có 4 release tracks:
+
+1. Internal Testing
+   - Cho team testing
+   - Up to 100 testers
+   - Available within minutes
+   
+2. Closed Testing (Alpha/Beta)
+   - Cho selected testers
+   - Up to 2,000 testers per track
+   - Available within hours
+   
+3. Open Testing
+   - Public beta
+   - Available to anyone
+   - Available within hours
+   
+4. Production
+   - Public release
+   - Rollout gradually (1%, 5%, 20%, 50%, 100%)
+   - Available within days
+```
+
+### Release Process
+
+```yaml
+# GitHub Actions workflow cho Play Store deployment
+name: Deploy to Play Store
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup JDK
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+    
+    - name: Decode keystore
+      run: echo ${{ secrets.KEYSTORE_BASE64 }} | base64 --decode > app/release-keystore.jks
+    
+    - name: Build AAB
+      run: ./gradlew bundleRelease
+      env:
+        KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+    
+    - name: Deploy to Play Store
+      uses: r0adkll/upload-google-play@v1
+      with:
+        serviceAccountJsonPlainText: ${{ secrets.PLAY_STORE_JSON_KEY }}
+        packageName: com.example.myapp
+        releaseFiles: app/build/outputs/bundle/release/app-release.aab
+        track: internal
+        status: completed
+        releaseNotes: |
+          {
+            "vi-VN": "Phiên bản mới với nhiều cải tiến"
+          }
+```
+
+### App Review Guidelines
+
+```
+Play Store Review Guidelines:
+
+1. Content Policies
+   - Không nội dung bạo lực, khiêu dâm
+   - Không phân biệt đối xử
+   - Không spam, lừa đảo
+
+2. Intellectual Property
+   - Không vi phạm bản quyền
+   - Không sử dụng trademark trái phép
+
+3. Privacy & Security
+   - Có privacy policy
+   - Khai báo data collection
+   - Tuân thủ GDPR, COPPA
+
+4. Monetization
+   - In-app purchases qua Google Play Billing
+   - Không circumvent payment system
+
+5. Technical Requirements
+   - Target API level gần nhất
+   - 64-bit support
+   - Không crash, ANR
+```
+
+### Optimization Tips
+
+```kotlin
+// 1. Reduce APK/AAB size
+android {
+    bundle {
+        // Split by language, density, ABI
+        language { enableSplit = true }
+        density { enableSplit = true }
+        abi { enableSplit = true }
+    }
+}
+
+// 2. App Bundle optimization
+// - Dynamic Feature Modules
+// - On-demand resources
+// - Texture compression formats
+
+// 3. Play Feature Delivery
+// - Install-time features
+// - On-demand features
+// - Fast-follow features
+
+// Example dynamic feature
+// settings.gradle
+include ':app', ':feature_profile', ':feature_chat'
+
+// feature_profile/build.gradle
+plugins {
+    id 'com.android.dynamic-feature'
+}
+
+dependencies {
+    implementation project(':app')
+}
+```
+
+### Post-Launch Monitoring
+
+```kotlin
+// 1. Vitals trong Play Console
+// - Crash rate
+// - ANR rate
+// - User feedback
+
+// 2. Firebase Crashlytics
+// implementation 'com.google.firebase:firebase-crashlytics:18.6.0'
+
+FirebaseCrashlytics.getInstance().setCustomKey("user_id", userId)
+FirebaseCrashlytics.getInstance().log("User performed action")
+FirebaseCrashlytics.getInstance().recordException(exception)
+
+// 3. Firebase Analytics
+FirebaseAnalytics.getInstance(this).logEvent("purchase") {
+    param(FirebaseAnalytics.Param.VALUE, price)
+}
+
+// 4. Reviews Management
+// - Reply to reviews
+// - Address issues
+// - Request rating updates
+```
+
+### Mẹo thực tế
+
+> **💡 Tip**: Luôn test trên Internal track trước khi đẩy lên Production. Sử dụng staged rollout (1%, 5%, 20%) để phát hiện vấn đề sớm.
+
+> **⚠️ Lưu ý**: Backup keystore an toàn! Nếu mất keystore, bạn không thể cập nhật ứng dụng hiện tại, phải publish app mới.
+
+> **🎯 Best Practice**: Chuẩn bị screenshots và store listing trước khi app hoàn thành. Điều này giúp bạn có mục tiêu rõ ràng cho product.

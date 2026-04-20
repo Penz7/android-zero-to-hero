@@ -1,0 +1,228 @@
+## Null Safety, Elvis Operator & Extension Functions
+
+### Vấn đề Null trong Java
+
+NullPointerException (NPE) là lỗi phổ biến nhất trong Java. Kotlin giải quyết vấn đề này bằng hệ thống type an toàn:
+
+```kotlin
+fun main() {
+    // Kotlin phân biệt rõ ràng giữa nullable và non-nullable
+    var tenNonNull: String = "Minh"
+    // tenNonNull = null // ❌ Compile error: Null cannot be a value of a non-null type String
+    
+    var tenNullable: String? = "Tuấn"
+    tenNullable = null // ✅ Hợp lệ vì đã khai báo String?
+}
+```
+
+### Safe Call Operator (`?.`)
+
+```kotlin
+fun main() {
+    val ten: String? = "Nguyễn Văn A"
+    
+    // Safe call - chỉ gọi length nếu ten khác null
+    val doDai = ten?.length
+    println("Độ dài: $doDai") // 10
+    
+    // Safe call chain
+    data class DiaChi(val thanhPho: String?)
+    data class NguoiDung(val diaChi: DiaChi?)
+    
+    val user: NguoiDung? = NguoiDung(DiaChi("Hà Nội"))
+    val thanhPho = user?.diaChi?.thanhPho
+    println("Thành phố: $thanhPho") // Hà Nội
+    
+    // Kết hợp với scope function
+    ten?.let {
+        println("Tên có giá trị: $it")
+        println("Độ dài: ${it.length}")
+    }
+}
+```
+
+### Elvis Operator (`?:`)
+
+Elvis operator cung cấp giá trị mặc định khi gặp null:
+
+```kotlin
+fun main() {
+    val ten: String? = null
+    
+    // Nếu ten là null, dùng giá trị mặc định
+    val ketQua = ten ?: "Không xác định"
+    println(ketQua) // Không xác định
+    
+    // Kết hợp với safe call
+    val doDai = ten?.length ?: 0
+    println("Độ dài: $doDai") // 0
+    
+    // Elvis với throw/return
+    fun layTenHoacThrow(ten: String?): String {
+        return ten ?: throw IllegalArgumentException("Tên không được null")
+    }
+    
+    fun xuLyTen(ten: String?): String {
+        val tenKhongNull = ten ?: return "Tên trống"
+        return "Xin chào, $tenKhongNull"
+    }
+}
+```
+
+### Non-null Assertion Operator (`!!`)
+
+```kotlin
+fun main() {
+    val ten: String? = "Minh"
+    
+    // !! - ép buộc compiler chấp nhận giá trị không null
+    // ⚠️ CẨN THẬN: Sẽ throw NPE nếu thực sự null!
+    val doDai = ten!!.length // An toàn vì ten không null
+    
+    // TRÁNH sử dụng !! nếu có thể
+    val nguyHiem: String? = null
+    // nguyHiem!!.length // ❌ Throw NullPointerException!
+}
+```
+
+### Safe Casting với `as?`
+
+```kotlin
+fun main() {
+    val obj: Any = "Hello Kotlin"
+    
+    // Safe cast - trả về null nếu cast thất bại
+    val chuoi: String? = obj as? String
+    val so: Int? = obj as? Int
+    
+    println("Chuỗi: $chuoi") // Hello Kotlin
+    println("Số: $so") // null (không throw exception)
+}
+```
+
+### Extension Functions
+
+Extension functions cho phép thêm hàm mới vào class hiện có mà không cần kế thừa:
+
+```kotlin
+// Thêm hàm vào class String
+fun String.demTu(): Int {
+    return this.trim().split("\\s+".toRegex()).size
+}
+
+// Thêm hàm capitalize tiếng Việt
+fun String.vietHoaChuCaiDau(): String {
+    return this.split(" ").joinToString(" ") { word ->
+        word.replaceFirstChar { it.uppercase() }
+    }
+}
+
+// Extension function cho List
+fun <T> List<T>.inDanhSach() {
+    forEachIndexed { index, item ->
+        println("${index + 1}. $item")
+    }
+}
+
+// Extension property
+val String.soTu: Int
+    get() = this.trim().split("\\s+".toRegex()).size
+
+fun main() {
+    val cau = "Xin chào thế giới"
+    println("Số từ: ${cau.demTu()}") // 3
+    println("Viết hoa: ${cau.vietHoaChuCaiDau()}")
+    
+    val danhSach = listOf("Phở", "Bún chả", "Bánh mì")
+    danhSach.inDanhSach()
+    
+    // Extension property
+    println("Số từ: ${cau.soTu}")
+}
+```
+
+### Extension Functions trong Android
+
+```kotlin
+// Ví dụ extension functions phổ biến trong Android
+
+// Toast extension
+fun Context.showToast(message: String, duration: Int = Toast.LENGTH_SHORT) {
+    Toast.makeText(this, message, duration).show()
+}
+
+// Visibility extensions
+fun View.show() { visibility = View.VISIBLE }
+fun View.hide() { visibility = View.GONE }
+fun View.invisible() { visibility = View.INVISIBLE }
+
+// String extensions cho validation
+fun String?.isValidEmail(): Boolean {
+    return !this.isNullOrBlank() && 
+           android.util.Patterns.EMAIL_ADDRESS.matcher(this).matches()
+}
+
+fun String?.isValidPhone(): Boolean {
+    return !this.isNullOrBlank() && 
+           this.matches("^0[0-9]{9}$".toRegex())
+}
+
+// Usage
+// context.showToast("Hello!")
+// view.show()
+// "test@gmail.com".isValidEmail() // true
+```
+
+### Extension Functions với Nullable Types
+
+```kotlin
+// Extension trên nullable type
+fun String?.orDefault(default: String = ""): String {
+    return this ?: default
+}
+
+fun Int?.orZero(): Int {
+    return this ?: 0
+}
+
+fun main() {
+    val ten: String? = null
+    println(ten.orDefault("Ẩn danh")) // Ẩn danh
+    
+    val so: Int? = null
+    println(so.orZero()) // 0
+}
+```
+
+### Kết hợp Null Safety patterns
+
+```kotlin
+data class ApiResponse(
+    val data: List<String>?,
+    val error: String?
+)
+
+fun xuLyResponse(response: ApiResponse?): String {
+    // Pattern 1: Safe call + Elvis
+    val duLieu = response?.data ?: emptyList()
+    
+    // Pattern 2: let + Elvis
+    val loi = response?.error ?: "Không có lỗi"
+    
+    // Pattern 3: when với null check
+    return when {
+        response == null -> "Response null"
+        response.error != null -> "Lỗi: ${response.error}"
+        response.data.isNullOrEmpty() -> "Không có dữ liệu"
+        else -> "Có ${response.data.size} phần tử"
+    }
+}
+```
+
+### Mẹo thực tế
+
+> **💡 Tip**: Trong Android, luôn sử dụng `?.let {}` thay vì `if (x != null) { x.doSomething() }`. Code sẽ ngắn gọn và an toàn hơn.
+
+> **⚠️ Lưu ý**: Tránh sử dụng `!!` trừ khi bạn hoàn toàn chắc chắn giá trị không null. Trong hầu hết các trường hợp, hãy dùng `?.` hoặc `?:` với giá trị mặc định.
+
+> **🎯 Best Practice**: Tạo extension functions cho các thao tác thường xuyên. Ví dụ: `fun View.onClick(action: () -> Unit) { setOnClickListener { action() } }` giúp code sạch hơn nhiều.

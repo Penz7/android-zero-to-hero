@@ -1,0 +1,305 @@
+## Column, Row, Box, Spacer & Modifier
+
+### Column - Bố cục dọc
+
+Column sắp xếp các phần tử theo chiều dọc (từ trên xuống dưới):
+
+```kotlin
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+
+@Composable
+fun ViDuColumn() {
+    // Column cơ bản
+    Column {
+        Text("Phần tử 1")
+        Text("Phần tử 2")
+        Text("Phần tử 3")
+    }
+    
+    // Column với alignment và spacing
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text("Tiêu đề", style = MaterialTheme.typography.headlineMedium)
+        Text("Nội dung mô tả")
+        Button(onClick = { }) { Text("Hành động") }
+    }
+}
+```
+
+### Row - Bố cục ngang
+
+Row sắp xếp các phần tử theo chiều ngang (từ trái sang phải):
+
+```kotlin
+@Composable
+fun ViDuRow() {
+    // Row cơ bản
+    Row {
+        Text("Trái")
+        Spacer(modifier = Modifier.width(16.dp))
+        Text("Phải")
+    }
+    
+    // Row với spacing và alignment
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("Tiêu đề")
+        Icon(
+            imageVector = Icons.Default.Star,
+            contentDescription = "Yêu thích"
+        )
+    }
+    
+    // Row với weight
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Button(
+            onClick = { },
+            modifier = Modifier.weight(1f) // Chiếm 50% chiều rộng
+        ) { Text("Hủy") }
+        
+        Button(
+            onClick = { },
+            modifier = Modifier.weight(1f)
+        ) { Text("Xác nhận") }
+    }
+}
+```
+
+### Box - Bố cục chồng lớp
+
+Box xếp chồng các phần tử lên nhau, phần tử sau nằm trên phần tử trước:
+
+```kotlin
+@Composable
+fun ViDuBox() {
+    // Box cơ bản - ảnh có badge
+    Box(
+        modifier = Modifier.size(100.dp)
+    ) {
+        // Ảnh chính
+        Image(
+            painter = painterResource(R.drawable.avatar),
+            contentDescription = "Avatar",
+            modifier = Modifier.fillMaxSize()
+        )
+        
+        // Badge online
+        Box(
+            modifier = Modifier
+                .size(20.dp)
+                .background(Color.Green, CircleShape)
+                .align(Alignment.BottomEnd)
+        )
+    }
+    
+    // Box với content alignment
+    Box(
+        modifier = Modifier
+            .size(200.dp)
+            .background(Color.LightGray),
+        contentAlignment = Alignment.Center
+    ) {
+        Text("Nội dung ở giữa")
+    }
+}
+```
+
+### Spacer - Khoảng cách
+
+```kotlin
+@Composable
+fun ViDuSpacer() {
+    Column {
+        Text("Trên")
+        
+        // Spacer dọc
+        Spacer(modifier = Modifier.height(32.dp))
+        
+        Row {
+            Text("Trái")
+            
+            // Spacer ngang
+            Spacer(modifier = Modifier.weight(1f)) // Đẩy phần tử tiếp theo sang phải
+            
+            Text("Phải")
+        }
+    }
+}
+```
+
+### Modifier Chain
+
+Modifier là cách thêm thuộc tính cho Composable. Thứ tự modifier rất quan trọng:
+
+```kotlin
+@Composable
+fun ViDuModifier() {
+    Text(
+        text = "Hello Compose",
+        modifier = Modifier
+            // 1. padding bên ngoài
+            .padding(16.dp)
+            // 2. nền
+            .background(Color.Blue)
+            // 3. padding bên trong (từ nền đến text)
+            .padding(8.dp)
+            // 4. kích thước
+            .fillMaxWidth()
+            // 5. bo góc
+            .clip(RoundedCornerShape(8.dp))
+    )
+    
+    // Modifier chain khác
+    Button(
+        onClick = { },
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .padding(horizontal = 16.dp)
+    ) {
+        Text("Nút đầy chiều rộng")
+    }
+}
+```
+
+### Các Modifier phổ biến
+
+```kotlin
+@Composable
+fun ViDuModifiersPhoBien() {
+    Column(
+        modifier = Modifier
+            // Kích thước
+            .fillMaxSize()          // Chiếm toàn bộ không gian có sẵn
+            .fillMaxWidth()         // Chiếm toàn bộ chiều rộng
+            .fillMaxHeight()        // Chiếm toàn bộ chiều cao
+            .size(100.dp)           // Kích thước cố định
+            .width(200.dp)          // Chiều rộng cố định
+            .height(50.dp)          // Chiều cao cố định
+            
+            // Khoảng cách
+            .padding(16.dp)         // Padding tất cả cạnh
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+            
+            // Nền và viền
+            .background(Color.White)
+            .border(1.dp, Color.Gray)
+            
+            // Bo góc
+            .clip(RoundedCornerShape(8.dp))
+            .clip(CircleShape)
+            
+            // Click và touch
+            .clickable { /* xử lý click */ }
+            
+            // Cuộn
+            .verticalScroll(rememberScrollState())
+    ) {
+        Text("Nội dung")
+    }
+}
+```
+
+### Modifier cho Text
+
+```kotlin
+@Composable
+fun ViDuTextModifier() {
+    Text(
+        text = "Tiêu đề",
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.primaryContainer)
+            .padding(16.dp),
+        color = MaterialTheme.colorScheme.onPrimaryContainer,
+        fontSize = 24.sp,
+        fontWeight = FontWeight.Bold,
+        textAlign = TextAlign.Center
+    )
+}
+```
+
+### Nested Layouts - Bố cục lồng nhau
+
+```kotlin
+@Composable
+fun TheSanPham(ten: String, gia: String, moTa: String) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            // Row cho tên và giá
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = ten,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = gia,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Text(
+                text = moTa,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            // Row cho các nút
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = { },
+                    modifier = Modifier.weight(1f)
+                ) { Text("Chi tiết") }
+                
+                Button(
+                    onClick = { },
+                    modifier = Modifier.weight(1f)
+                ) { Text("Mua ngay") }
+            }
+        }
+    }
+}
+```
+
+### Mẹo thực tế
+
+> **💡 Tip**: Thứ tự trong Modifier chain rất quan trọng! Ví dụ: `Modifier.background().padding()` sẽ tạo padding SAU nền, còn `Modifier.padding().background()` sẽ tạo padding TRƯỚC nền.
+
+> **⚠️ Lưu ý**: Tránh tạo Modifier mới trong mỗi recomposition. Định nghĩa Modifier bên ngoài composable hoặc sử dụng `remember` để tối ưu performance.
+
+> **🎯 Best Practice**: Sử dụng `Arrangement.spacedBy()` thay vì thêm Spacer thủ công. Code sẽ ngắn gọn và dễ đọc hơn.

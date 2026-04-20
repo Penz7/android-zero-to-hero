@@ -1,0 +1,310 @@
+## Xây dựng Portfolio Android Developer
+
+### Portfolio Architecture
+
+```
+Recommended project structure for portfolio:
+
+1. Personal Finance App (Main Project)
+   - MVVM + Clean Architecture
+   - Jetpack Compose
+   - Room Database
+   - Firebase Auth
+   - Charts & Analytics
+
+2. E-commerce App (Complex Features)
+   - Product catalog
+   - Shopping cart
+   - Payment integration
+   - Real-time notifications
+
+3. Open Source Contribution
+   - Contribute to popular libraries
+   - Show collaboration skills
+   - Demonstrate code quality
+```
+
+### GitHub Profile Optimization
+
+```markdown
+# README.md cho GitHub Profile
+
+## 👋 Hi, I'm [Your Name]
+
+**Android Developer** passionate about creating beautiful, performant mobile experiences.
+
+### 🛠️ Tech Stack
+- **Languages**: Kotlin, Java
+- **Frameworks**: Jetpack Compose, Android SDK
+- **Architecture**: MVVM, Clean Architecture
+- **Libraries**: Room, Retrofit, Hilt, Coroutines, Flow
+- **Tools**: Android Studio, Git, Firebase, GitHub Actions
+
+### 📱 Featured Projects
+
+#### 1. [Finance Tracker App](https://github.com/username/finance-tracker)
+💰 Personal finance management app with smart budgeting features
+- **Tech**: Compose, Room, Hilt, Coroutines, MVVM
+- **Features**: Charts, Export CSV, Multi-currency
+- **Play Store**: [Download](https://play.google.com/store/apps/details?id=com.example.finance)
+
+#### 2. [Task Manager](https://github.com/username/task-manager)
+✅ Clean architecture todo app with offline-first support
+- **Tech**: Compose, Room, Repository Pattern
+- **Features**: Sync, Notifications, Widgets
+
+#### 3. [Weather App](https://github.com/username/weather-app)
+🌤️ Real-time weather forecasting with beautiful UI
+- **Tech**: Compose, Retrofit, Location Services
+- **Features**: 7-day forecast, Maps integration
+
+### 📊 GitHub Stats
+![GitHub Stats](https://github-readme-stats.vercel.app/api?username=username&show_icons=true)
+
+### 📫 Contact
+- **Email**: your.email@example.com
+- **LinkedIn**: [linkedin.com/in/username](https://linkedin.com/in/username)
+- **Portfolio**: [yourwebsite.com](https://yourwebsite.com)
+```
+
+### Project README Template
+
+```markdown
+# 📱 Finance Tracker App
+
+A personal finance management app built with modern Android development practices.
+
+[![Platform](https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white)]()
+[![Kotlin](https://img.shields.io/badge/Kotlin-0095D5?&style=for-the-badge&logo=kotlin&logoColor=white)]()
+[![Compose](https://img.shields.io/badge/Compose-4285F4?style=for-the-badge&logo=google&logoColor=white)]()
+
+## 📸 Screenshots
+
+| Home Screen | Add Transaction | Statistics |
+|-------------|-----------------|------------|
+| ![Home](screenshots/home.png) | ![Add](screenshots/add.png) | ![Stats](screenshots/stats.png) |
+
+## ✨ Features
+
+- 📊 Track income and expenses
+- 📈 Visual charts and reports
+- 💰 Budget management
+- 🔄 CSV export
+- 🌙 Dark mode support
+- 🔒 Biometric authentication
+
+## 🏗️ Architecture
+
+```
+┌─────────────────────────────────────┐
+│         Presentation Layer          │
+│  ┌──────────┐  ┌───────────────┐   │
+│  │ Compose  │  │   ViewModel   │   │
+│  └──────────┘  └───────────────┘   │
+├─────────────────────────────────────┤
+│           Domain Layer              │
+│  ┌──────────────────────────────┐   │
+│  │ Use Cases (GetTransactions)  │   │
+│  │ Entities (Transaction)       │   │
+│  │ Repository Interfaces        │   │
+│  └──────────────────────────────┘   │
+├─────────────────────────────────────┤
+│            Data Layer               │
+│  ┌──────────┐  ┌───────────────┐   │
+│  │   Room   │  │   Retrofit    │   │
+│  └──────────┘  └───────────────┘   │
+└─────────────────────────────────────┘
+```
+
+## 🛠️ Tech Stack
+
+- **UI**: Jetpack Compose, Material 3
+- **Architecture**: MVVM, Clean Architecture
+- **DI**: Hilt
+- **Database**: Room
+- **Async**: Coroutines, Flow
+- **Charts**: MPAndroidChart
+- **Testing**: JUnit, Mockito, Compose Testing
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Android Studio Hedgehog (2023.1.1) or later
+- JDK 17
+- Android SDK 34
+
+### Setup
+1. Clone the repository
+```bash
+git clone https://github.com/username/finance-tracker.git
+```
+
+2. Open in Android Studio
+
+3. Sync Gradle files
+
+4. Run on emulator or device
+
+## 🧪 Testing
+
+```bash
+# Run unit tests
+./gradlew test
+
+# Run UI tests
+./gradlew connectedAndroidTest
+
+# Generate coverage report
+./gradlew jacocoTestReport
+```
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- [Material Design](https://material.io/design)
+- [Jetpack Compose Documentation](https://developer.android.com/jetpack/compose)
+- [Android Architecture Samples](https://github.com/android/architecture-samples)
+```
+
+### Demo Video Script
+
+```markdown
+Video Structure (2-3 minutes):
+
+0:00 - 0:15: Introduction
+"Hi, I'm [Name], and this is my Finance Tracker app..."
+
+0:15 - 0:45: App Overview
+Show main screens, navigation flow
+
+0:45 - 1:30: Key Features Demo
+- Add transaction
+- View statistics
+- Export CSV
+
+1:30 - 2:00: Architecture Highlights
+Brief code walkthrough
+Show clean architecture
+
+2:00 - 2:30: Testing & CI/CD
+Show test results
+Show GitHub Actions pipeline
+
+2:30 - 3:00: Closing
+Call to action
+Contact information
+```
+
+### Clean Code Practices
+
+```kotlin
+// ❌ Bad naming
+fun proc(d: Data): Result {
+    // process data
+}
+
+// ✅ Good naming
+fun calculateMonthlyExpenses(transactions: List<Transaction>): MonthlyExpenseSummary {
+    val groupedByMonth = transactions.groupBy { it.date.month }
+    return MonthlyExpenseSummary(
+        monthlyTotals = groupedByMonth.mapValues { (_, txns) ->
+            txns.sumOf { it.amount }
+        }
+    )
+}
+
+// ❌ Too many parameters
+fun createTransaction(
+    amount: Double,
+    category: String,
+    date: Long,
+    note: String,
+    type: String,
+    accountId: String,
+    tags: List<String>,
+    isRecurring: Boolean,
+    recurringPeriod: String?
+) { /* ... */ }
+
+// ✅ Use data class
+data class CreateTransactionRequest(
+    val amount: Double,
+    val category: String,
+    val date: Long,
+    val note: String,
+    val type: TransactionType,
+    val accountId: String,
+    val tags: List<String> = emptyList(),
+    val recurringConfig: RecurringConfig? = null
+)
+
+fun createTransaction(request: CreateTransactionRequest) { /* ... */ }
+```
+
+### Documentation Best Practices
+
+```kotlin
+/**
+ * Calculates the total expenses for a given month.
+ *
+ * This function filters transactions by the specified month and year,
+ * then sums up all expense transactions (amounts < 0).
+ *
+ * @param transactions List of all transactions
+ * @param month The month to calculate (1-12)
+ * @param year The year to calculate
+ * @return Total expenses as a positive Double, or 0.0 if no expenses
+ * @throws IllegalArgumentException if month is not in 1-12 range
+ *
+ * @sample
+ * ```
+ * val transactions = listOf(
+ *     Transaction(amount = -50.0, date = "2024-01-15"),
+ *     Transaction(amount = -30.0, date = "2024-01-20")
+ * )
+ * val total = calculateMonthlyExpenses(transactions, 1, 2024)
+ * // total = 80.0
+ * ```
+ */
+fun calculateMonthlyExpenses(
+    transactions: List<Transaction>,
+    month: Int,
+    year: Int
+): Double {
+    require(month in 1..12) { "Month must be between 1 and 12" }
+    
+    return transactions
+        .filter { it.date.month == month && it.date.year == year }
+        .filter { it.amount < 0 }
+        .sumOf { abs(it.amount) }
+}
+```
+
+### Continuous Improvement
+
+```markdown
+Weekly Goals:
+- [ ] Contribute to 1 open source project
+- [ ] Write 1 technical blog post
+- [ ] Learn 1 new Android concept
+- [ ] Refactor 1 section of code
+- [ ] Review 3 pull requests
+
+Monthly Goals:
+- [ ] Ship 1 feature
+- [ ] Give 1 tech talk
+- [ ] Attend 1 meetup
+- [ ] Network with 5 developers
+- [ ] Update portfolio with new projects
+```
+
+### Mẹo thực tế
+
+> **💡 Tip**: Quality over quantity. 1-2 well-built projects tốt hơn 10 projects nhỏ. Thể hiện depth of knowledge.
+
+> **⚠️ Lưu ý**: Đừng copy code từ tutorials. Recruiters có thể nhận ra và đánh giá thấp.
+
+> **🎯 Best Practice**: Show your problem-solving process. Document challenges và how you solved them. This impresses interviewers more than perfect code.

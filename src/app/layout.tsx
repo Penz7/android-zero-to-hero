@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -32,10 +33,20 @@ export const metadata: Metadata = {
     siteName: SITE_CONFIG.name,
     locale: "vi_VN",
     type: "website",
+    images: ["/images/og/home.svg"],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_CONFIG.name,
+    description: SITE_CONFIG.description,
+    images: ["/images/og/home.svg"],
   },
   robots: {
     index: true,
     follow: true,
+  },
+  alternates: {
+    canonical: SITE_CONFIG.url,
   },
 };
 
@@ -46,6 +57,21 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="vi" suppressHydrationWarning>
+      <head>
+        {/* Google Analytics - Replace G-XXXXXXXXXX with your GA4 ID */}
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-XXXXXXXXXX');
+          `}
+        </Script>
+      </head>
       <body
         className={`${inter.variable} font-sans antialiased min-h-screen flex flex-col`}
       >

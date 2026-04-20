@@ -1,0 +1,358 @@
+## Retrofit - Networking
+
+### Giới thiệu Retrofit
+
+Retrofit là thư viện HTTP client phổ biến nhất cho Android, giúp gọi REST API dễ dàng:
+
+```kotlin
+// dependencies
+// implementation "com.squareup.retrofit2:retrofit:2.9.0"
+// implementation "com.squareup.retrofit2:converter-moshi:2.9.0"
+// implementation "com.squareup.moshi:moshi-kotlin:1.15.0"
+// implementation "com.squareup.okhttp3:logging-interceptor:4.12.0"
+```
+
+### Cấu hình Retrofit
+
+```kotlin
+import retrofit2.Retrofit
+import retrofit2.converter.moshi.MoshiConverterFactory
+
+object RetrofitClient {
+    private const val BASE_URL = "https://api.example.com/"
+    
+    // Moshi với Kotlin support
+    private val moshi = Moshi.Builder()
+        .add(KotlinJsonAdapterFactory())
+        .build()
+    
+    // OkHttp client với logging
+    private val okHttpClient = OkHttpClient.Builder()
+        .addInterceptor(HttpLoggingInterceptor().apply {
+            level = if (BuildConfig.DEBUG) {
+                HttpLoggingInterceptor.Level.BODY
+            } else {
+                HttpLoggingInterceptor.Level.NONE
+            }
+        })
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .build()
+    
+    // Retrofit instance
+    val retrofit: Retrofit = Retrofit.Builder()
+        .baseUrl(BASE_URL)
+        .client(okHttpClient)
+        .addConverterFactory(MoshiConverterFactory.create(moshi))
+        .build()
+}
+```
+
+### API Service Interface
+
+```kotlin
+import retrofit2.http.*
+
+data class User(
+    val id: Int,
+    val name: String,
+    val email: String
+)
+
+data class LoginRequest(
+    val email: String,
+    val password: String
+)
+
+data class LoginResponse(
+    val token: String,
+    val user: User
+)
+
+interface ApiService {
+    // GET request
+    @GET("users")
+    suspend fun getUsers(): List<User>
+    
+    @GET("users/{id}")
+    suspend fun getUserById(@Path("id") userId: Int): User
+    
+    @GET("users")
+    suspend fun searchUsers(@Query("name") name: String): List<User>
+    
+    @GET("users")
+    suspend fun getUsersPaginated(
+        @Query("page") page: Int,
+        @Query("limit") limit: Int = 20
+    ): List<User>
+    
+    // POST request
+    @POST("auth/login")
+    suspend fun login(@Body request: LoginRequest): LoginResponse
+    
+    @POST("users")
+    suspend fun createUser(@Body user: User): User
+    
+    // PUT request
+    @PUT("users/{id}")
+    suspend fun updateUser(
+        @Path("id") userId: Int,
+        @Body user: User
+    ): User
+    
+    // PATCH request
+    @PATCH("users/{id}")
+    suspend fun updateUserPartial(
+        @Path("id") userId: Int,
+        @Body fields: Map<String, Any>
+    ): User
+    
+    // DELETE request
+    @DELETE("users/{id}")
+    suspend fun deleteUser(@Path("id") userId: Int)
+    
+    // Headers
+    @Headers("Content-Type: application/json")
+    @GET("profile")
+    suspend fun getProfile(): User
+    
+    // Dynamic headers
+    @GET("protected")
+    suspend fun getProtectedData(
+        @Header("Authorization") token: String
+    ): Any
+}
+```
+
+### Response Wrapper
+
+```kotlin
+// ApiResponse sealed class
+sealed class ApiResponse<out T> {
+    data class Success<T>(val data: T) : ApiResponse<T>()
+    data class Error(val code: Int, val message: String) : ApiResponse<Nothing>()
+    data class Exception(val exception: Throwable) : ApiResponse<Nothing>()
+}
+
+// Safe API call wrapper
+suspend fun <T> safeApiCall(apiCall: suspend () -> T): ApiResponse<T> {
+    return try {
+        ApiResponse.Success(apiCall())
+    } catch (e: HttpException) {
+        ApiResponse.Error(e.code(), e.message())
+    } catch (e: IOException) {
+        ApiResponse.Exception(e)
+    } catch (e: Exception) {
+        ApiResponse.Exception(e)
+    }
+}
+
+// Usage
+class UserRepository(private val apiService: ApiService) {
+    suspend fun getUsers(): ApiResponse<List<User>> {
+        return safeApiCall { apiService.getUsers() }
+    }
+}
+```
+
+### Error Handling
+
+```kotlin
+class ApiException(val code: Int, message: String) : Exception(message)
+
+suspend fun <T> handleApiCall(call: suspend () -> Response<T>): T {
+    try {
+        val response = call()
+        if (response.isSuccessful) {
+            return response.body() ?: throw ApiException(
+                response.code(),
+                "Response body is null"
+            )
+        } else {
+            // Parse error body
+            val errorBody = response.errorBody()?.string()
+            val errorMessage = try {
+                val json = JSONObject(errorBody ?: "")
+                json.getString("message")
+            } catch (e: Exception) {
+                response.message() ?: "Unknown error"
+            }
+            throw ApiException(response.code(), errorMessage)
+        }
+    } catch (e: IOException) {
+        throw Exception("Lỗi mạng: ${e.message}")
+    }
+}
+
+// Usage trong repository
+class UserRepositoryImpl(private val apiService: ApiService) : UserRepository {
+    override suspend fun getUsers(): List<User> {
+        return handleApiCall { apiService.getUsers() }
+    }
+}
+```
+
+### Authentication với Interceptor
+
+```kotlin
+class AuthInterceptor(private val tokenManager: TokenManager) : Interceptor {
+    override fun intercept(chain: Interceptor.Chain): Response {
+        val originalRequest = chain.request()
+        
+        // Skip auth cho login/register
+        if (originalRequest.url.encodedPath.contains("auth")) {
+            return chain.proceed(originalRequest)
+        }
+        
+        // Thêm token vào header
+        val token = tokenManager.getToken()
+        val authenticatedRequest = originalRequest.newBuilder()
+            .header("Authorization", "Bearer $token")
+            .build()
+        
+        val response = chain.proceed(authenticatedRequest)
+        
+        // Xử lý 401 - Token hết hạn
+        if (response.code == 401) {
+            // Refresh token logic
+            val newToken = refreshToken()
+            val retryRequest = originalRequest.newBuilder()
+                .header("Authorization", "Bearer $newToken")
+                .build()
+            return chain.proceed(retryRequest)
+        }
+        
+        return response
+    }
+    
+    private fun refreshToken(): String {
+        // Implement refresh token logic
+        return ""
+    }
+}
+```
+
+### Multipart Upload
+
+```kotlin
+interface ApiService {
+    // Upload file
+    @Multipart
+    @POST("upload")
+    suspend fun uploadImage(
+        @Part image: MultipartBody.Part,
+        @Part("description") description: RequestBody
+    ): UploadResponse
+    
+    // Upload nhiều files
+    @Multipart
+    @POST("upload/multiple")
+    suspend fun uploadMultiple(
+        @Part files: List<MultipartBody.Part>
+    ): List<UploadResponse>
+}
+
+// Usage
+suspend fun uploadImage(file: File, description: String) {
+    val requestBody = file.asRequestBody("image/*".toMediaType())
+    val part = MultipartBody.Part.createFormData(
+        "image",
+        file.name,
+        requestBody
+    )
+    val descBody = description.toRequestBody("text/plain".toMediaType())
+    
+    apiService.uploadImage(part, descBody)
+}
+```
+
+### Pagination với Retrofit
+
+```kotlin
+data class PaginatedResponse<T>(
+    val data: List<T>,
+    val page: Int,
+    val totalPages: Int,
+    val totalItems: Int
+) {
+    val hasNextPage: Boolean get() = page < totalPages
+}
+
+interface ApiService {
+    @GET("users")
+    suspend fun getUsers(
+        @Query("page") page: Int,
+        @Query("size") size: Int = 20
+    ): PaginatedResponse<User>
+}
+
+// Repository với pagination
+class UserRepository(private val apiService: ApiService) {
+    private var currentPage = 1
+    
+    suspend fun loadNextPage(): List<User> {
+        val response = apiService.getUsers(currentPage)
+        if (response.hasNextPage) {
+            currentPage++
+        }
+        return response.data
+    }
+    
+    fun reset() {
+        currentPage = 1
+    }
+}
+```
+
+### Hilt Module cho Retrofit
+
+```kotlin
+@Module
+@InstallIn(SingletonComponent::class)
+object NetworkModule {
+    
+    @Provides
+    @Singleton
+    fun provideMoshi(): Moshi {
+        return Moshi.Builder()
+            .add(KotlinJsonAdapterFactory())
+            .build()
+    }
+    
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(): OkHttpClient {
+        return OkHttpClient.Builder()
+            .addInterceptor(HttpLoggingInterceptor().apply {
+                level = HttpLoggingInterceptor.Level.BODY
+            })
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .build()
+    }
+    
+    @Provides
+    @Singleton
+    fun provideRetrofit(okHttpClient: OkHttpClient, moshi: Moshi): Retrofit {
+        return Retrofit.Builder()
+            .baseUrl(BuildConfig.BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .build()
+    }
+    
+    @Provides
+    @Singleton
+    fun provideApiService(retrofit: Retrofit): ApiService {
+        return retrofit.create(ApiService::class.java)
+    }
+}
+```
+
+### Mẹo thực tế
+
+> **💡 Tip**: Luôn sử dụng Moshi với `KotlinJsonAdapterFactory` để hỗ trợ đầy đủ các tính năng của Kotlin như default values và nullable types.
+
+> **⚠️ Lưu ý**: Không bao giờ hardcode token trong code. Sử dụng EncryptedSharedPreferences hoặc Android Keystore để lưu trữ token an toàn.
+
+> **🎯 Best Practice**: Tạo wrapper ApiResponse sealed class để xử lý tất cả các trường hợp (Success, Error, Exception) một cách nhất quán trong toàn bộ ứng dụng.

@@ -1,0 +1,176 @@
+## List, Map, Set & Collection Operations
+
+### List - Danh sách
+
+List là collection有序, có thể chứa phần tử trùng lặp:
+
+```kotlin
+fun main() {
+    // Immutable list - không thể thay đổi
+    val monAn = listOf("Phở", "Bún chả", "Bánh mì", "Phở")
+    println(monAn) // [Phở, Bún chả, Bánh mì, Phở]
+    println(monAn.size) // 4
+    println(monAn[0]) // Phở
+    
+    // Mutable list - có thể thêm/xóa
+    val danhSachMua = mutableListOf("Sữa", "Bánh")
+    danhSachMua.add("Trứng")
+    danhSachMua.add("Cà phê")
+    danhSachMua.remove("Bánh")
+    danhSachMua[0] = "Sữa tươi"
+    println(danhSachMua) // [Sữa tươi, Trứng, Cà phê]
+}
+```
+
+### Map - Bản đồ (Key-Value)
+
+```kotlin
+fun main() {
+    // Immutable map
+    val maVung = mapOf(
+        "HN" to "Hà Nội",
+        "HCM" to "TP.HCM",
+        "DN" to "Đà Nẵng"
+    )
+    println(maVung["HN"]) // Hà Nội
+    println(maVung.size) // 3
+    
+    // Mutable map
+    val diemSo = mutableMapOf<String, Int>()
+    diemSo["Toán"] = 9
+    diemSo["Lý"] = 8
+    diemSo["Hóa"] = 7
+    diemSo.remove("Hóa")
+    
+    // Duyệt map
+    for ((mon, diem) in diemSo) {
+        println("$mon: $diem")
+    }
+}
+```
+
+### Set - Tập hợp (Không trùng lặp)
+
+```kotlin
+fun main() {
+    // Immutable set
+    val mauSac = listOf("Đỏ", "Xanh", "Vàng", "Đỏ", "Xanh")
+    val mauSacDuyNhat = mauSac.toSet()
+    println(mauSacDuyNhat) // [Đỏ, Xanh, Vàng]
+    
+    // Mutable set
+    val monYeuThich = mutableSetOf("Phở", "Bún")
+    monYeuThich.add("Bánh mì")
+    monYeuThich.add("Phở") // Không thêm được vì đã tồn tại
+    println(monYeuThich.size) // 3
+    
+    // Set operations
+    val setA = setOf(1, 2, 3, 4)
+    val setB = setOf(3, 4, 5, 6)
+    println(setA union setB)    // [1, 2, 3, 4, 5, 6]
+    println(setA intersect setB) // [3, 4]
+    println(setA subtract setB)  // [1, 2]
+}
+```
+
+### Collection Operations - Các phép toán nâng cao
+
+```kotlin
+data class SanPham(
+    val ten: String,
+    val gia: Double,
+    val danhMuc: String
+)
+
+fun main() {
+    val sanPhams = listOf(
+        SanPham("iPhone 15", 25_000_000.0, "Điện thoại"),
+        SanPham("Samsung S24", 22_000_000.0, "Điện thoại"),
+        SanPham("MacBook Air", 28_000_000.0, "Laptop"),
+        SanPham("iPad Pro", 18_000_000.0, "Tablet"),
+        SanPham("AirPods", 4_000_000.0, "Phụ kiện")
+    )
+    
+    // filter - lọc phần tử thỏa điều kiện
+    val dienThoai = sanPhams.filter { it.danhMuc == "Điện thoại" }
+    println("Điện thoại: $dienThoai")
+    
+    // map - biến đổi từng phần tử
+    val tenSanPhams = sanPhams.map { it.ten }
+    println("Tên SP: $tenSanPhams")
+    
+    // find - tìm phần tử đầu tiên thỏa điều kiện
+    val spGiaRe = sanPhams.find { it.gia < 10_000_000 }
+    println("SP giá rẻ: $spGiaRe") // AirPods
+    
+    // sorted - sắp xếp
+    val sapXepGia = sanPhams.sortedBy { it.gia }
+    val sapXepGiaGiam = sanPhams.sortedByDescending { it.gia }
+    
+    // forEach - duyệt qua từng phần tử
+    sanPhams.forEach { println("${it.ten}: ${it.gia}") }
+    
+    // any - kiểm tra có phần tử thỏa điều kiện không
+    val coGiaTren20M = sanPhams.any { it.gia > 20_000_000 }
+    println("Có SP > 20tr: $coGiaTren20M") // true
+    
+    // all - kiểm tra tất cả thỏa điều kiện
+    val tatCaDuoi30M = sanPhams.all { it.gia < 30_000_000 }
+    println("Tất cả < 30tr: $tatCaDuoi30M") // true
+    
+    // count - đếm số phần tử thỏa điều kiện
+    val soDienThoai = sanPhams.count { it.danhMuc == "Điện thoại" }
+    println("Số ĐT: $soDienThoai") // 2
+    
+    // groupBy - nhóm theo điều kiện
+    val nhomTheoDanhMuc = sanPhams.groupBy { it.danhMuc }
+    println("Nhóm: ${nhomTheoDanhMuc.keys}")
+    
+    // sumOf - tính tổng
+    val tongGia = sanPhams.sumOf { it.gia }
+    println("Tổng giá: ${String.format("%,.0f", tongGia)}")
+    
+    // flatMap - làm phẳng collection lồng nhau
+    val danhMucs = listOf(
+        listOf("Điện thoại", "Tablet"),
+        listOf("Laptop", "PC")
+    )
+    val tatCaDanhMuc = danhMucs.flatten() // [Điện thoại, Tablet, Laptop, PC]
+    
+    // Chaining - nối nhiều phép toán
+    val ketQua = sanPhams
+        .filter { it.gia > 10_000_000 }
+        .sortedByDescending { it.gia }
+        .map { "${it.ten}: ${String.format("%,.0f", it.gia)}đ" }
+        .joinToString("\n")
+    println(ketQua)
+}
+```
+
+### Conversion giữa các collection types
+
+```kotlin
+fun main() {
+    val list = listOf(1, 2, 2, 3, 3, 4)
+    
+    // List -> Set (loại bỏ trùng)
+    val set = list.toSet()
+    
+    // Set -> List
+    val listLai = set.toList()
+    
+    // List -> Map
+    val map = list.withIndex().associate { (index, value) -> index to value }
+    
+    // Array <-> List
+    val array = arrayOf(1, 2, 3)
+    val listFromArray = array.toList()
+    val arrayFromList = listFromArray.toTypedArray()
+}
+```
+
+### Mẹo thực tế
+
+> **💡 Tip**: Trong Android, sử dụng immutable list làm default, chỉ dùng mutable khi cần sửa đổi. Điều này giúp tránh lỗi không mong muốn.
+
+> **⚠️ Lưu ý**: Khi làm việc với Room database, kết quả truy vấn thường trả về `Flow<List<Entity>>`. Sử dụng các collection operations để transform dữ liệu trong ViewModel.

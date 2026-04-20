@@ -1,0 +1,299 @@
+## Navigation Component
+
+### Giới thiệu Navigation trong Compose
+
+Navigation Component giúp quản lý chuyển đổi giữa các màn hình trong ứng dụng:
+
+```kotlin
+// dependencies trong build.gradle
+// implementation "androidx.navigation:navigation-compose:2.7.0"
+```
+
+### Cấu trúc cơ bản
+
+```kotlin
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+
+@Composable
+fun UngDungNavigation() {
+    val navController = rememberNavController()
+    
+    NavHost(
+        navController = navController,
+        startDestination = "home"
+    ) {
+        // Định nghĩa các màn hình
+        composable("home") {
+            ManHinhChinh(
+                onNavigateToDetail = {
+                    navController.navigate("detail")
+                }
+            )
+        }
+        
+        composable("detail") {
+            ManHinhChiTiet(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+    }
+}
+```
+
+### Navigation với Arguments
+
+```kotlin
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
+
+@Composable
+fun UngDungNavigation() {
+    val navController = rememberNavController()
+    
+    NavHost(
+        navController = navController,
+        startDestination = "products"
+    ) {
+        // Màn hình danh sách sản phẩm
+        composable("products") {
+            DanhSachSanPham(
+                onProductClick = { productId ->
+                    // Navigate với argument
+                    navController.navigate("product/$productId")
+                }
+            )
+        }
+        
+        // Màn hình chi tiết sản phẩm với argument
+        composable(
+            route = "product/{productId}",
+            arguments = listOf(
+                navArgument("productId") {
+                    type = NavType.IntType
+                }
+            )
+        ) { backStackEntry ->
+            // Lấy argument từ backStackEntry
+            val productId = backStackEntry.arguments?.getInt("productId") ?: 0
+            ChiTietSanPham(
+                productId = productId,
+                onBack = { navController.popBackStack() }
+            )
+        }
+    }
+}
+```
+
+### Multiple Arguments
+
+```kotlin
+@Composable
+fun NavigationVoiNhieuArguments() {
+    val navController = rememberNavController()
+    
+    NavHost(navController, startDestination = "search") {
+        composable("search") {
+            ManHinhTimKiem(
+                onSearch = { query, category, page ->
+                    // Encode URL để tránh lỗi với ký tự đặc biệt
+                    val encodedQuery = Uri.encode(query)
+                    navController.navigate("results/$encodedQuery/$category/$page")
+                }
+            )
+        }
+        
+        composable(
+            route = "results/{query}/{category}/{page}",
+            arguments = listOf(
+                navArgument("query") { type = NavType.StringType },
+                navArgument("category") { type = NavType.StringType },
+                navArgument("page") { type = NavType.IntType }
+            )
+        ) { backStackEntry ->
+            val query = backStackEntry.arguments?.getString("query") ?: ""
+            val category = backStackEntry.arguments?.getString("category") ?: "all"
+            val page = backStackEntry.arguments?.getInt("page") ?: 1
+            
+            ManHinhKetQuaTimKiem(query, category, page)
+        }
+    }
+}
+```
+
+### Named Routes với Constants
+
+```kotlin
+// Định nghĩa routes trong object
+object Routes {
+    const val HOME = "home"
+    const val PRODUCT_LIST = "products"
+    const val PRODUCT_DETAIL = "product/{productId}"
+    const val SETTINGS = "settings"
+    
+    fun productDetail(productId: Int) = "product/$productId"
+}
+
+@Composable
+fun NavigationVoiConstants() {
+    val navController = rememberNavController()
+    
+    NavHost(navController, startDestination = Routes.HOME) {
+        composable(Routes.HOME) {
+            ManHinhChinh(
+                onGoToProducts = {
+                    navController.navigate(Routes.PRODUCT_LIST)
+                }
+            )
+        }
+        
+        composable(Routes.PRODUCT_LIST) {
+            DanhSachSanPham(
+                onProductClick = { id ->
+                    navController.navigate(Routes.productDetail(id))
+                }
+            )
+        }
+        
+        composable(
+            route = Routes.PRODUCT_DETAIL,
+            arguments = listOf(navArgument("productId") { type = NavType.IntType })
+        ) { backStackEntry ->
+            val id = backStackEntry.arguments?.getInt("productId") ?: 0
+            ChiTietSanPham(id)
+        }
+    }
+}
+```
+
+### Nested Navigation
+
+```kotlin
+@Composable
+fun NestedNavigation() {
+    val navController = rememberNavController()
+    
+    Scaffold(
+        bottomBar = {
+            NavigationBar {
+                NavigationBarItem(
+                    selected = currentRoute == "home",
+                    onClick = { navController.navigate("home") },
+                    icon = { Icon(Icons.Default.Home, "Trang chủ") },
+                    label = { Text("Trang chủ") }
+                )
+                NavigationBarItem(
+                    selected = currentRoute == "profile",
+                    onClick = { navController.navigate("profile") },
+                    icon = { Icon(Icons.Default.Person, "Hồ sơ") },
+                    label = { Text("Hồ sơ") }
+                )
+            }
+        }
+    ) { paddingValues ->
+        NavHost(
+            navController = navController,
+            startDestination = "home",
+            modifier = Modifier.padding(paddingValues)
+        ) {
+            // Nested graph cho Home
+            navigation(startDestination = "home_main", route = "home") {
+                composable("home_main") { ManHinhChinhChinh() }
+                composable("home_detail/{id}") { ChiTiet() }
+            }
+            
+            // Nested graph cho Profile
+            navigation(startDestination = "profile_main", route = "profile") {
+                composable("profile_main") { ManHinhHoSo() }
+                composable("profile_edit") { ChinhSuaHoSo() }
+            }
+        }
+    }
+}
+```
+
+### Deep Links
+
+```kotlin
+composable(
+    route = "product/{id}",
+    arguments = listOf(navArgument("id") { type = NavType.IntType }),
+    deepLinks = listOf(
+        navDeepLink { uriPattern = "myapp://product/{id}" }
+    )
+) { backStackEntry ->
+    val id = backStackEntry.arguments?.getInt("id") ?: 0
+    ChiTietSanPham(id)
+}
+```
+
+### Animation chuyển màn hình
+
+```kotlin
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
+
+composable(
+    route = "detail",
+    enterTransition = {
+        slideInHorizontally(
+            initialOffsetX = { it },
+            animationSpec = tween(300)
+        )
+    },
+    exitTransition = {
+        slideOutHorizontally(
+            targetOffsetX = { -it },
+            animationSpec = tween(300)
+        )
+    },
+    popEnterTransition = {
+        slideInHorizontally(
+            initialOffsetX = { -it },
+            animationSpec = tween(300)
+        )
+    },
+    popExitTransition = {
+        slideOutHorizontally(
+            targetOffsetX = { it },
+            animationSpec = tween(300)
+        )
+    }
+) {
+    ManHinhChiTiet()
+}
+```
+
+### Navigation Helper Functions
+
+```kotlin
+// Extension functions để navigate dễ dàng hơn
+fun NavController.navigateToProduct(productId: Int) {
+    navigate("product/$productId") {
+        // Single top - tránh tạo nhiều instance cùng màn hình
+        launchSingleTop = true
+        // Restore state nếu màn hình đã tồn tại trong back stack
+        restoreState = true
+    }
+}
+
+fun NavController.navigateAndClearBackStack(route: String) {
+    navigate(route) {
+        // Xóa toàn bộ back stack
+        popUpTo(graph.startDestinationId) {
+            inclusive = true
+        }
+    }
+}
+```
+
+### Mẹo thực tế
+
+> **💡 Tip**: Sử dụng object Routes để định nghĩa tất cả routes. Điều này giúp tránh lỗi typo và dễ refactor sau này.
+
+> **⚠️ Lưu ý**: Khi truyền dữ liệu phức tạp qua navigation, hãy sử dụng Parcelable hoặc Serialize thay vì truyền từng field riêng lẻ.
+
+> **🎯 Best Practice**: Luôn xử lý back navigation đúng cách. Sử dụng `navController.popBackStack()` thay vì `activity.finish()` để đảm bảo navigation state nhất quán.

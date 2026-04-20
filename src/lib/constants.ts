@@ -5,7 +5,7 @@ export const SITE_CONFIG = {
   description:
     "Lộ trình học Android Development 30 ngày với Kotlin & Jetpack Compose. Từ số 0 đến Junior Android Developer.",
   url: "https://android-zero-to-hero.github.io",
-  ogImage: "/images/og/home.png",
+  ogImage: "/images/og/home.svg",
   links: {
     github: "https://github.com/android-zero-to-hero",
     roadmap: "https://roadmap.sh/android",

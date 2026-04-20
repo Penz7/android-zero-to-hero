@@ -1,9 +1,12 @@
 import { notFound } from "next/navigation";
 import { Breadcrumb } from "@/components/layout/Breadcrumb";
 import { ALL_LESSONS, WEEKS } from "@/lib/constants";
+import { LessonContent } from "./LessonContent";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Clock, Calendar, Tag } from "lucide-react";
 import type { Metadata } from "next";
+import fs from "fs";
+import path from "path";
 
 interface LessonPageProps {
   params: Promise<{ slug: string }>;
@@ -13,7 +16,9 @@ export async function generateStaticParams() {
   return ALL_LESSONS.map((l) => ({ slug: l.slug }));
 }
 
-export async function generateMetadata({ params }: LessonPageProps): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: LessonPageProps): Promise<Metadata> {
   const { slug } = await params;
   const lesson = ALL_LESSONS.find((l) => l.slug === slug);
   if (!lesson) return { title: "Not Found" };
@@ -21,7 +26,24 @@ export async function generateMetadata({ params }: LessonPageProps): Promise<Met
     title: `${lesson.title} — Day ${lesson.day}/30`,
     description: lesson.description,
     keywords: ["android", "kotlin", ...lesson.tags],
+    openGraph: {
+      title: `${lesson.title} — Day ${lesson.day}/30`,
+      description: lesson.description,
+      images: ["/images/og/lesson.svg"],
+    },
   };
+}
+
+function getLessonContent(slug: string): string | null {
+  const files = fs.readdirSync(
+    path.join(process.cwd(), "src/content/lessons")
+  );
+  const file = files.find((f) => f.includes(slug) && f.endsWith(".mdx"));
+  if (!file) return null;
+  return fs.readFileSync(
+    path.join(process.cwd(), "src/content/lessons", file),
+    "utf-8"
+  );
 }
 
 export default async function LessonPage({ params }: LessonPageProps) {
@@ -34,9 +56,10 @@ export default async function LessonPage({ params }: LessonPageProps) {
   const nextLesson =
     lessonIndex < ALL_LESSONS.length - 1 ? ALL_LESSONS[lessonIndex + 1] : null;
   const week = WEEKS.find((w) => w.number === lesson.week);
+  const content = getLessonContent(slug);
 
   return (
-    <div className="container mx-auto px-4 py-12">
+    <div className="container mx-auto px-4 py-8 sm:py-12">
       <Breadcrumb
         items={[
           { label: "Lộ trình", href: "/roadmap" },
@@ -59,10 +82,10 @@ export default async function LessonPage({ params }: LessonPageProps) {
               {lesson.difficulty}
             </span>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">
             {lesson.title}
           </h1>
-          <p className="mt-3 text-lg text-muted-foreground">
+          <p className="mt-3 text-base sm:text-lg text-muted-foreground">
             {lesson.description}
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
@@ -88,27 +111,28 @@ export default async function LessonPage({ params }: LessonPageProps) {
           </div>
         </header>
 
-        {/* Content placeholder */}
-        <div className="rounded-lg border bg-muted/30 p-8 text-center">
-          <p className="text-muted-foreground">
-            📝 Nội dung bài học sẽ được viết bằng MDX.
-          </p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Bài học Day {lesson.day}: {lesson.title}
-          </p>
-        </div>
+        {/* MDX Content */}
+        {content ? (
+          <LessonContent content={content} />
+        ) : (
+          <div className="rounded-lg border bg-muted/30 p-8 text-center">
+            <p className="text-muted-foreground">
+              📝 Nội dung bài học đang được cập nhật...
+            </p>
+          </div>
+        )}
 
         {/* Navigation */}
-        <nav className="mt-12 flex items-center justify-between border-t pt-8">
+        <nav className="mt-12 flex items-center justify-between border-t pt-8 gap-4">
           {prevLesson ? (
             <Link
               href={`/learn/${prevLesson.slug}`}
-              className="group flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="group flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors min-w-0"
             >
-              <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-              <div>
+              <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform shrink-0" />
+              <div className="min-w-0">
                 <div className="text-xs">Bài trước</div>
-                <div className="font-medium">{prevLesson.title}</div>
+                <div className="font-medium truncate">{prevLesson.title}</div>
               </div>
             </Link>
           ) : (
@@ -117,13 +141,13 @@ export default async function LessonPage({ params }: LessonPageProps) {
           {nextLesson ? (
             <Link
               href={`/learn/${nextLesson.slug}`}
-              className="group flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors text-right"
+              className="group flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors text-right min-w-0"
             >
-              <div>
+              <div className="min-w-0">
                 <div className="text-xs">Bài tiếp theo</div>
-                <div className="font-medium">{nextLesson.title}</div>
+                <div className="font-medium truncate">{nextLesson.title}</div>
               </div>
-              <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+              <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform shrink-0" />
             </Link>
           ) : (
             <div />

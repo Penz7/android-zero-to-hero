@@ -1,0 +1,268 @@
+## State Management trong Compose
+
+### State là gì?
+
+Trong Compose, state là bất kỳ giá trị nào có thể thay đổi theo thời gian. Khi state thay đổi, Compose tự động cập nhật UI (recomposition):
+
+```kotlin
+import androidx.compose.runtime.*
+import androidx.compose.material3.*
+
+// State cơ bản nhất
+@Composable
+fun BoDemDonGian() {
+    // remember giữ giá trị qua các lần recomposition
+    var count by remember { mutableStateOf(0) }
+    
+    Column {
+        Text("Số: $count")
+        Button(onClick = { count++ }) {
+            Text("Tăng")
+        }
+    }
+}
+```
+
+### remember và mutableStateOf
+
+```kotlin
+@Composable
+fun ViDuRemember() {
+    // remember với các kiểu dữ liệu khác nhau
+    var soNguyen by remember { mutableStateOf(0) }
+    var chuoi by remember { mutableStateOf("Xin chào") }
+    var danhSach by remember { mutableStateOf(listOf("A", "B", "C")) }
+    var coDanhDau by remember { mutableStateOf(false) }
+    
+    // remember với giá trị khởi tạo từ tham số
+    @Composable
+    fun Counter(initialValue: Int = 0) {
+        var count by remember { mutableStateOf(initialValue) }
+        Button(onClick = { count++ }) {
+            Text("Count: $count")
+        }
+    }
+}
+```
+
+### State Hoisting Pattern
+
+State hoisting là pattern chuyển state lên component cha, giúp component con trở nên stateless:
+
+```kotlin
+// ❌ BAD: Component quản lý state của chính nó
+@Composable
+fun TextFieldXau() {
+    var text by remember { mutableStateOf("") }
+    TextField(value = text, onValueChange = { text = it })
+}
+
+// ✅ GOOD: State được hoisted lên parent
+@Composable
+fun FormNhapLieu(
+    text: String,                    // State từ cha
+    onTextChange: (String) -> Unit   // Callback để cập nhật state
+) {
+    TextField(
+        value = text,
+        onValueChange = onTextChange,
+        label = { Text("Nhập tên") }
+    )
+}
+
+@Composable
+fun FormParent() {
+    // State được quản lý ở component cha
+    var ten by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    
+    Column {
+        FormNhapLieu(
+            text = ten,
+            onTextChange = { ten = it }
+        )
+        
+        FormNhapLieu(
+            text = email,
+            onTextChange = { email = it }
+        )
+        
+        Text("Tên: $ten, Email: $email")
+    }
+}
+```
+
+### derivedStateOf
+
+`derivedStateOf` tạo state được tính toán từ state khác, chỉ recomposition khi giá trị thực sự thay đổi:
+
+```kotlin
+@Composable
+fun ViDuDerivedState() {
+    var count by remember { mutableStateOf(0) }
+    
+    // derivedStateOf chỉ recomposition khi kết quả thay đổi
+    val isEven by remember {
+        derivedStateOf { count % 2 == 0 }
+    }
+    
+    // Tính toán phức tạp hơn
+    val message by remember {
+        derivedStateOf {
+            when {
+                count < 0 -> "Số âm"
+                count == 0 -> "Bằng không"
+                count < 10 -> "Nhỏ hơn 10"
+                else -> "Lớn hơn hoặc bằng 10"
+            }
+        }
+    }
+    
+    Column {
+        Text("Count: $count")
+        Text("Chẵn: $isEven")
+        Text("Thông điệp: $message")
+        Button(onClick = { count++ }) { Text("Tăng") }
+    }
+}
+```
+
+### State với List
+
+```kotlin
+@Composable
+fun DanhSachCongViec() {
+    var congViecs by remember { mutableStateOf(listOf<String>()) }
+    var inputText by remember { mutableStateOf("") }
+    
+    Column(modifier = Modifier.padding(16.dp)) {
+        // Input
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TextField(
+                value = inputText,
+                onValueChange = { inputText = it },
+                modifier = Modifier.weight(1f),
+                label = { Text("Công việc mới") }
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Button(onClick = {
+                if (inputText.isNotBlank()) {
+                    congViecs = congViecs + inputText
+                    inputText = ""
+                }
+            }) { Text("Thêm") }
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        // Danh sách
+        LazyColumn {
+            items(congViecs) { congViec ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(congViec)
+                    IconButton(onClick = {
+                        congViecs = congViecs - congViec
+                    }) {
+                        Icon(Icons.Default.Delete, "Xóa")
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+### rememberSaveable
+
+`rememberSaveable` giữ state qua configuration changes (xoay màn hình):
+
+```kotlin
+import androidx.compose.runtime.saveable.rememberSaveable
+
+@Composable
+fun ViDuRememberSaveable() {
+    // remember sẽ mất khi xoay màn hình
+    var count1 by remember { mutableStateOf(0) }
+    
+    // rememberSaveable giữ lại khi xoay màn hình
+    var count2 by rememberSaveable { mutableStateOf(0) }
+    
+    // Với custom object, cần Saver
+    data class UserProfile(val name: String, val age: Int)
+    
+    var profile by rememberSaveable(stateSaver = UserProfileSaver) {
+        mutableStateOf(UserProfile("", 0))
+    }
+}
+```
+
+### snapshotFlow
+
+`snapshotFlow` chuyển đổi Compose State thành Flow:
+
+```kotlin
+@Composable
+fun ViDuSnapshotFlow() {
+    var text by remember { mutableStateOf("") }
+    
+    LaunchedEffect(Unit) {
+        // Chuyển state thành Flow và collect
+        snapshotFlow { text }
+            .filter { it.length > 3 }
+            .collect { value ->
+                println("Text changed: $value")
+            }
+    }
+    
+    TextField(
+        value = text,
+        onValueChange = { text = it }
+    )
+}
+```
+
+### State Patterns trong thực tế
+
+```kotlin
+// Sealed class cho UI State
+sealed class TodoState {
+    object Loading : TodoState()
+    data class Success(val items: List<String>) : TodoState()
+    data class Error(val message: String) : TodoState()
+}
+
+@Composable
+fun TodoScreen(viewModel: TodoViewModel = viewModel()) {
+    // Collect state từ ViewModel
+    val state by viewModel.state.collectAsState()
+    
+    when (val currentState = state) {
+        is TodoState.Loading -> {
+            CircularProgressIndicator()
+        }
+        is TodoState.Success -> {
+            LazyColumn {
+                items(currentState.items) { item ->
+                    Text(item)
+                }
+            }
+        }
+        is TodoState.Error -> {
+            Text("Lỗi: ${currentState.message}")
+        }
+    }
+}
+```
+
+### Mẹo thực tế
+
+> **💡 Tip**: Luôn tuân theo nguyên tắc "Single Source of Truth". State chỉ nên tồn tại ở một nơi và được chia sẻ xuống các component con.
+
+> **⚠️ Lưu ý**: `remember` giữ state qua recomposition nhưng MẤT khi xoay màn hình. Sử dụng `rememberSaveable` cho các state cần giữ lại.
+
+> **🎯 Best Practice**: Sử dụng State Hoisting để tạo các component tái sử dụng. Component chỉ nhận state và callback, không quản lý state riêng.

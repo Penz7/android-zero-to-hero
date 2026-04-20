@@ -1,0 +1,374 @@
+## Animations & Custom Layouts
+
+### AnimatedVisibility
+
+`AnimatedVisibility` tự động animate khi visibility thay đổi:
+
+```kotlin
+import androidx.compose.animation.*
+import androidx.compose.runtime.*
+
+@Composable
+fun ViDuAnimatedVisibility() {
+    var hienThi by remember { mutableStateOf(true) }
+    
+    Column(modifier = Modifier.padding(16.dp)) {
+        Button(onClick = { hienThi = !hienThi }) {
+            Text(if (hienThi) "Ẩn" else "Hiện")
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        // AnimatedVisibility cơ bản
+        AnimatedVisibility(visible = hienThi) {
+            Card(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Nội dung có animation!",
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
+        }
+        
+        // AnimatedVisibility với custom animation
+        AnimatedVisibility(
+            visible = hienThi,
+            enter = fadeIn() + slideInVertically(),
+            exit = fadeOut() + slideOutVertically()
+        ) {
+            Text("Custom animation")
+        }
+    }
+}
+```
+
+### animateAsState
+
+`animateAsState` tạo animation mượt mà cho các giá trị:
+
+```kotlin
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.background
+
+@Composable
+fun ViDuAnimateAsState() {
+    var expanded by remember { mutableStateOf(false) }
+    
+    // Animate size
+    val size by animateDpAsState(
+        targetValue = if (expanded) 200.dp else 100.dp,
+        animationSpec = tween(durationMillis = 300)
+    )
+    
+    // Animate color
+    val color by animateColorAsState(
+        targetValue = if (expanded) Color.Blue else Color.Red,
+        animationSpec = tween(durationMillis = 500)
+    )
+    
+    // Animate alpha
+    val alpha by animateFloatAsState(
+        targetValue = if (expanded) 1f else 0.5f
+    )
+    
+    Column(modifier = Modifier.padding(16.dp)) {
+        Button(onClick = { expanded = !expanded }) {
+            Text("Chuyển đổi")
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        Box(
+            modifier = Modifier
+                .size(size)
+                .background(color.copy(alpha = alpha))
+        )
+    }
+}
+```
+
+### Animation Specs
+
+```kotlin
+@Composable
+fun ViDuAnimationSpecs() {
+    var isToggled by remember { mutableStateOf(false) }
+    
+    // Tween - thời gian cố định
+    val sizeTween by animateDpAsState(
+        targetValue = if (isToggled) 150.dp else 50.dp,
+        animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
+    )
+    
+    // Spring - mô phỏng lò xo
+    val sizeSpring by animateDpAsState(
+        targetValue = if (isToggled) 150.dp else 50.dp,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        )
+    )
+    
+    // Keyframes - animation theo từng mốc
+    val sizeKeyframes by animateDpAsState(
+        targetValue = if (isToggled) 150.dp else 50.dp,
+        animationSpec = keyframes {
+            durationMillis = 500
+            50.dp at 0
+            200.dp at 250 // Bounce lên
+            150.dp at 500 // Rồi settle về 150
+        }
+    )
+    
+    // Repeatable - lặp lại
+    val pulsingSize by animateFloatAsState(
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000),
+            repeatMode = RepeatMode.Reverse
+        )
+    )
+}
+```
+
+### updateTransition
+
+Sử dụng khi cần animate nhiều giá trị cùng lúc:
+
+```kotlin
+enum class TrangThai { NHO, LON }
+
+@Composable
+fun ViDuTransition() {
+    var trangThai by remember { mutableStateOf(TrangThai.NHO) }
+    
+    val transition = updateTransition(trangThai, label = "sizeTransition")
+    
+    val size by transition.animateDp(label = "size") { state ->
+        when (state) {
+            TrangThai.NHO -> 100.dp
+            TrangThai.LON -> 200.dp
+        }
+    }
+    
+    val color by transition.animateColor(label = "color") { state ->
+        when (state) {
+            TrangThai.NHO -> Color.Blue
+            TrangThai.LON -> Color.Green
+        }
+    }
+    
+    val cornerRadius by transition.animateDp(label = "corner") { state ->
+        when (state) {
+            TrangThai.NHO -> 8.dp
+            TrangThai.LON -> 0.dp
+        }
+    }
+    
+    Column(modifier = Modifier.padding(16.dp)) {
+        Button(onClick = {
+            trangThai = when (trangThai) {
+                TrangThai.NHO -> TrangThai.LON
+                TrangThai.LON -> TrangThai.NHO
+            }
+        }) {
+            Text("Chuyển đổi")
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        Box(
+            modifier = Modifier
+                .size(size)
+                .background(color, RoundedCornerShape(cornerRadius))
+        )
+    }
+}
+```
+
+### AnimatedContent
+
+```kotlin
+@Composable
+fun ViDuAnimatedContent() {
+    var count by remember { mutableStateOf(0) }
+    
+    Column(modifier = Modifier.padding(16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Button(onClick = { count-- }) { Text("-") }
+            
+            // AnimatedContent cho số đếm
+            AnimatedContent(
+                targetState = count,
+                transitionSpec = {
+                    if (targetState > initialState) {
+                        slideInVertically { -it } + fadeIn() togetherWith
+                        slideOutVertically { it } + fadeOut()
+                    } else {
+                        slideInVertically { it } + fadeIn() togetherWith
+                        slideOutVertically { -it } + fadeOut()
+                    }
+                },
+                label = "counter"
+            ) { targetCount ->
+                Text(
+                    text = "$targetCount",
+                    style = MaterialTheme.typography.headlineLarge
+                )
+            }
+            
+            Button(onClick = { count++ }) { Text("+") }
+        }
+    }
+}
+```
+
+### Custom Layout
+
+Tạo layout tùy chỉnh khi Column/Row/Box không đáp ứng được:
+
+```kotlin
+@Composable
+fun FlowRow(
+    modifier: Modifier = Modifier,
+    horizontalSpacing: Dp = 0.dp,
+    verticalSpacing: Dp = 0.dp,
+    content: @Composable () -> Unit
+) {
+    Layout(
+        content = content,
+        modifier = modifier
+    ) { measurables, constraints ->
+        val horizontalSpacingPx = horizontalSpacing.roundToPx()
+        val verticalSpacingPx = verticalSpacing.roundToPx()
+        
+        // Đo từng child
+        val placeables = measurables.map { measurable ->
+            measurable.measure(constraints)
+        }
+        
+        var currentRow = 0
+        var currentX = 0
+        var currentY = 0
+        var rowHeight = 0
+        
+        val positions = mutableListOf<Offset>()
+        
+        placeables.forEach { placeable ->
+            if (currentX + placeable.width > constraints.maxWidth) {
+                // Xuống dòng mới
+                currentX = 0
+                currentY += rowHeight + verticalSpacingPx
+                rowHeight = 0
+            }
+            
+            positions.add(Offset(currentX.toFloat(), currentY.toFloat()))
+            
+            currentX += placeable.width + horizontalSpacingPx
+            rowHeight = maxOf(rowHeight, placeable.height)
+        }
+        
+        val totalHeight = currentY + rowHeight
+        
+        layout(constraints.maxWidth, totalHeight) {
+            placeables.forEachIndexed { index, placeable ->
+                placeable.placeRelative(
+                    x = positions[index].x.toInt(),
+                    y = positions[index].y.toInt()
+                )
+            }
+        }
+    }
+}
+```
+
+### SubcomposeLayout
+
+SubcomposeLayout cho phép đo và đặt layout dựa trên kết quả đo của layout khác:
+
+```kotlin
+@Composable
+fun MeasuredText(
+    text: String,
+    modifier: Modifier = Modifier,
+    textStyle: TextStyle = MaterialTheme.typography.bodyLarge,
+    onSizeMeasured: (IntSize) -> Unit
+) {
+    SubcomposeLayout(modifier = modifier) { constraints ->
+        val placeable = subcompose("text") {
+            Text(text = text, style = textStyle)
+        }.first().measure(constraints)
+        
+        // Callback với kích thước đã đo
+        onSizeMeasured(IntSize(placeable.width, placeable.height))
+        
+        layout(placeable.width, placeable.height) {
+            placeable.placeRelative(0, 0)
+        }
+    }
+}
+```
+
+### Animated List Items
+
+```kotlin
+@Composable
+fun AnimatedItemList(items: List<String>) {
+    LazyColumn {
+        items(
+            items = items,
+            key = { it }
+        ) { item ->
+            var isVisible by remember { mutableStateOf(false) }
+            
+            LaunchedEffect(Unit) {
+                isVisible = true
+            }
+            
+            AnimatedVisibility(
+                visible = isVisible,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                        .animateItemPlacement() // Animation khi reorder
+                ) {
+                    Text(
+                        text = item,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+```
+
+### Crossfade
+
+```kotlin
+@Composable
+fun ManHinhChinh() {
+    var currentScreen by remember { mutableStateOf("home") }
+    
+    Crossfade(targetState = currentScreen, label = "screen") { screen ->
+        when (screen) {
+            "home" -> ManHinhTrangChu()
+            "profile" -> ManHinhHoSo()
+            "settings" -> ManHinhCaiDat()
+        }
+    }
+}
+```
+
+### Mẹo thực tế
+
+> **💡 Tip**: Sử dụng `animateItemPlacement()` trong LazyColumn để tạo animation mượt mà khi danh sách thay đổi thứ tự.
+
+> **⚠️ Lưu ý**: Tránh tạo animation trong mỗi recomposition. Sử dụng `remember` để giữ animation state và chỉ thay đổi target value.
+
+> **🎯 Best Practice**: Ưu tiên sử dụng các animation APIs có sẵn (AnimatedVisibility, animateAsState) trước khi tạo custom animation. Chúng đã được tối ưu và xử lý edge cases tốt hơn.

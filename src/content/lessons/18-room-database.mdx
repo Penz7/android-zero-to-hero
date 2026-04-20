@@ -1,0 +1,339 @@
+## Room Database
+
+### Giới thiệu Room
+
+Room là thư viện abstraction layer trên SQLite, giúp làm việc với database dễ dàng hơn:
+
+```kotlin
+// dependencies trong build.gradle
+// implementation "androidx.room:room-runtime:2.6.0"
+// implementation "androidx.room:room-ktx:2.6.0"
+// kapt "androidx.room:room-compiler:2.6.0"
+```
+
+### @Entity - Bảng dữ liệu
+
+```kotlin
+import androidx.room.*
+
+@Entity(tableName = "users")
+data class User(
+    @PrimaryKey(autoGenerate = true)
+    val id: Int = 0,
+    
+    @ColumnInfo(name = "name")
+    val name: String,
+    
+    @ColumnInfo(name = "email")
+    val email: String,
+    
+    @ColumnInfo(name = "age")
+    val age: Int,
+    
+    @ColumnInfo(name = "created_at")
+    val createdAt: Long = System.currentTimeMillis()
+)
+
+// Entity với nhiều cột là primary key
+@Entity(
+    tableName = "user_favorite",
+    primaryKeys = ["userId", "productId"]
+)
+data class UserFavorite(
+    val userId: Int,
+    val productId: Int,
+    val addedAt: Long = System.currentTimeMillis()
+)
+
+// Entity với foreign key
+@Entity(
+    tableName = "posts",
+    foreignKeys = [ForeignKey(
+        entity = User::class,
+        parentColumns = ["id"],
+        childColumns = ["userId"],
+        onDelete = ForeignKey.CASCADE
+    )]
+)
+data class Post(
+    @PrimaryKey(autoGenerate = true)
+    val id: Int = 0,
+    
+    val userId: Int,
+    val title: String,
+    val content: String
+)
+```
+
+### @Dao - Data Access Object
+
+```kotlin
+@Dao
+interface UserDao {
+    // Insert - thêm dữ liệu
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(user: User): Long
+    
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(users: List<User>)
+    
+    // Update - cập nhật dữ liệu
+    @Update
+    suspend fun update(user: User)
+    
+    // Delete - xóa dữ liệu
+    @Delete
+    suspend fun delete(user: User)
+    
+    @Query("DELETE FROM users WHERE id = :userId")
+    suspend fun deleteById(userId: Int)
+    
+    @Query("DELETE FROM users")
+    suspend fun deleteAll()
+    
+    // Query - truy vấn dữ liệu
+    @Query("SELECT * FROM users")
+    fun getAll(): Flow<List<User>>
+    
+    @Query("SELECT * FROM users WHERE id = :id")
+    suspend fun getById(id: Int): User?
+    
+    @Query("SELECT * FROM users WHERE name LIKE :query OR email LIKE :query")
+    fun search(query: String): Flow<List<User>>
+    
+    @Query("SELECT * FROM users ORDER BY created_at DESC")
+    fun getAllSortedByDate(): Flow<List<User>>
+    
+    @Query("SELECT * FROM users WHERE age > :minAge")
+    fun getByMinAge(minAge: Int): Flow<List<User>>
+    
+    // Count
+    @Query("SELECT COUNT(*) FROM users")
+    fun getCount(): Flow<Int>
+}
+```
+
+### @Database - Database class
+
+```kotlin
+@Database(
+    entities = [User::class, Post::class, UserFavorite::class],
+    version = 1,
+    exportSchema = false
+)
+@TypeConverters(Converters::class)
+abstract class AppDatabase : RoomDatabase() {
+    
+    abstract fun userDao(): UserDao
+    abstract fun postDao(): PostDao
+    
+    companion object {
+        @Volatile
+        private var INSTANCE: AppDatabase? = null
+        
+        fun getInstance(context: Context): AppDatabase {
+            return INSTANCE ?: synchronized(this) {
+                val instance = Room.databaseBuilder(
+                    context.applicationContext,
+                    AppDatabase::class.java,
+                    "app_database"
+                )
+                .fallbackToDestructiveMigration() // Xóa và tạo lại DB khi migration
+                .build()
+                INSTANCE = instance
+                instance
+            }
+        }
+    }
+}
+```
+
+### TypeConverters
+
+```kotlin
+class Converters {
+    // Chuyển đổi Long -> Date
+    @TypeConverter
+    fun fromTimestamp(value: Long?): Date? {
+        return value?.let { Date(it) }
+    }
+    
+    @TypeConverter
+    fun dateToTimestamp(date: Date?): Long? {
+        return date?.time
+    }
+    
+    // Chuyển đổi List<String> <-> String
+    @TypeConverter
+    fun fromStringList(value: List<String>): String {
+        return value.joinToString(",")
+    }
+    
+    @TypeConverter
+    fun toStringList(value: String): List<String> {
+        return if (value.isEmpty()) emptyList() else value.split(",")
+    }
+}
+```
+
+### Relations - Quan hệ giữa các bảng
+
+```kotlin
+// One-to-Many: User có nhiều Post
+data class UserWithPosts(
+    @Embedded
+    val user: User,
+    
+    @Relation(
+        parentColumn = "id",
+        entityColumn = "userId"
+    )
+    val posts: List<Post>
+)
+
+// Many-to-Many: User và Product qua UserFavorite
+data class UserWithFavorites(
+    @Embedded
+    val user: User,
+    
+    @Relation(
+        parentColumn = "id",
+        entityColumn = "productId",
+        associateBy = Junction(
+            value = UserFavorite::class,
+            parentColumn = "userId",
+            entityColumn = "productId"
+        )
+    )
+    val favoriteProducts: List<Product>
+)
+
+// Query với relation
+@Dao
+interface UserDao {
+    @Transaction
+    @Query("SELECT * FROM users WHERE id = :userId")
+    fun getUserWithPosts(userId: Int): Flow<UserWithPosts>
+    
+    @Transaction
+    @Query("SELECT * FROM users")
+    fun getAllUsersWithPosts(): Flow<List<UserWithPosts>>
+}
+```
+
+### Repository Pattern với Room
+
+```kotlin
+class UserRepository @Inject constructor(
+    private val userDao: UserDao,
+    private val apiService: ApiService
+) {
+    // Offline-first pattern
+    fun getUsers(): Flow<Resource<List<User>>> = flow {
+        emit(Resource.Loading())
+        
+        // 1. Emit dữ liệu từ cache
+        val cachedUsers = userDao.getAll()
+        emitAll(cachedUsers.map { Resource.Success(it) })
+        
+        // 2. Fetch từ API và cập nhật cache
+        try {
+            val remoteUsers = apiService.getUsers()
+            userDao.deleteAll()
+            userDao.insertAll(remoteUsers.map { it.toEntity() })
+        } catch (e: Exception) {
+            emit(Resource.Error("Không thể cập nhật: ${e.message}"))
+        }
+    }.flowOn(Dispatchers.IO)
+    
+    suspend fun insertUser(user: User) = withContext(Dispatchers.IO) {
+        userDao.insert(user.toEntity())
+    }
+    
+    suspend fun deleteUser(user: User) = withContext(Dispatchers.IO) {
+        userDao.delete(user.toEntity())
+    }
+}
+```
+
+### Database Migrations
+
+```kotlin
+// Migration từ version 1 lên 2
+val MIGRATION_1_2 = object : Migration(1, 2) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL(
+            "ALTER TABLE users ADD COLUMN phone TEXT DEFAULT ''"
+        )
+    }
+}
+
+// Migration với nhiều thay đổi
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // Tạo bảng mới
+        database.execSQL("""
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )
+        """)
+        
+        // Thêm index
+        database.execSQL(
+            "CREATE INDEX index_users_email ON users(email)"
+        )
+    }
+}
+
+// Sử dụng migrations
+Room.databaseBuilder(
+    context,
+    AppDatabase::class.java,
+    "app_database"
+)
+.addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+.build()
+```
+
+### Testing với Room
+
+```kotlin
+@RunWith(AndroidJUnit4::class)
+class UserDaoTest {
+    private lateinit var database: AppDatabase
+    private lateinit var userDao: UserDao
+    
+    @Before
+    fun setup() {
+        database = Room.inMemoryDatabaseBuilder(
+            ApplicationProvider.getApplicationContext(),
+            AppDatabase::class.java
+        ).build()
+        userDao = database.userDao()
+    }
+    
+    @After
+    fun teardown() {
+        database.close()
+    }
+    
+    @Test
+    fun insertAndGetUser() = runTest {
+        val user = User(name = "Minh", email = "minh@test.com", age = 25)
+        userDao.insert(user)
+        
+        val loaded = userDao.getById(1)
+        assertNotNull(loaded)
+        assertEquals("Minh", loaded?.name)
+    }
+}
+```
+
+### Mẹo thực tế
+
+> **💡 Tip**: Luôn sử dụng `Flow` cho các query trả về danh sách. Điều này giúp UI tự động cập nhật khi dữ liệu thay đổi trong database.
+
+> **⚠️ Lưu ý**: Không bao giờ gọi database operations trên Main thread. Luôn sử dụng `suspend` functions hoặc `Flow` để đảm bảo bất đồng bộ.
+
+> **🎯 Best Practice**: Áp dụng Offline-first pattern - hiển thị dữ liệu cache ngay lập tức, sau đó cập nhật từ API. Người dùng sẽ có trải nghiệm mượt mà hơn.

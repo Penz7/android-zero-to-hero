@@ -1,0 +1,334 @@
+## Theme, Color, Typography
+
+### MaterialTheme trong Compose
+
+MaterialTheme cung cấp hệ thống design nhất quán cho toàn bộ ứng dụng:
+
+```kotlin
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+
+@Composable
+fun UngDungCuaToi(
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    content: @Composable () -> Unit
+) {
+    MaterialTheme(
+        colorScheme = if (darkTheme) darkColorScheme() else lightColorScheme(),
+        typography = Typography(),
+        content = content
+    )
+}
+```
+
+### ColorScheme - Bảng màu
+
+```kotlin
+import androidx.compose.ui.graphics.Color
+
+// Định nghĩa màu tùy chỉnh
+object AppColors {
+    val Primary = Color(0xFF6200EE)
+    val PrimaryVariant = Color(0xFF3700B3)
+    val Secondary = Color(0xFF03DAC6)
+    val Background = Color(0xFFF5F5F5)
+    val Surface = Color(0xFFFFFFFF)
+    val Error = Color(0xFFB00020)
+    
+    // Material 3 colors
+    val md_theme_light_primary = Color(0xFF6750A4)
+    val md_theme_light_onPrimary = Color(0xFFFFFFFF)
+    val md_theme_light_primaryContainer = Color(0xFFEADDFF)
+    val md_theme_light_secondary = Color(0xFF625B71)
+    val md_theme_light_tertiary = Color(0xFF7D5260)
+    
+    val md_theme_dark_primary = Color(0xFFD0BCFF)
+    val md_theme_dark_onPrimary = Color(0xFF381E72)
+    val md_theme_dark_primaryContainer = Color(0xFF4F378B)
+}
+
+// Tạo ColorScheme tùy chỉnh
+private val LightColorScheme = lightColorScheme(
+    primary = AppColors.md_theme_light_primary,
+    onPrimary = AppColors.md_theme_light_onPrimary,
+    primaryContainer = AppColors.md_theme_light_primaryContainer,
+    secondary = AppColors.md_theme_light_secondary,
+    tertiary = AppColors.md_theme_light_tertiary,
+)
+
+private val DarkColorScheme = darkColorScheme(
+    primary = AppColors.md_theme_dark_primary,
+    onPrimary = AppColors.md_theme_dark_onPrimary,
+    primaryContainer = AppColors.md_theme_dark_primaryContainer,
+)
+```
+
+### Typography
+
+```kotlin
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+
+// Định nghĩa typography tùy chỉnh
+val AppTypography = Typography(
+    displayLarge = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Normal,
+        fontSize = 57.sp,
+        lineHeight = 64.sp,
+        letterSpacing = (-0.25).sp
+    ),
+    headlineLarge = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 32.sp,
+        lineHeight = 40.sp
+    ),
+    headlineMedium = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 28.sp,
+        lineHeight = 36.sp
+    ),
+    titleLarge = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Medium,
+        fontSize = 22.sp,
+        lineHeight = 28.sp
+    ),
+    bodyLarge = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Normal,
+        fontSize = 16.sp,
+        lineHeight = 24.sp,
+        letterSpacing = 0.5.sp
+    ),
+    bodyMedium = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Normal,
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
+        letterSpacing = 0.25.sp
+    ),
+    labelLarge = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Medium,
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
+        letterSpacing = 0.1.sp
+    )
+)
+```
+
+### Custom Theme
+
+```kotlin
+// Theme.kt
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+
+private val LightColors = lightColorScheme(
+    primary = Color(0xFF1976D2),
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFFD3E3FD),
+    secondary = Color(0xFF52575D),
+    background = Color(0xFFFAFBFC),
+    surface = Color.White,
+)
+
+private val DarkColors = darkColorScheme(
+    primary = Color(0xFF90CAF9),
+    onPrimary = Color(0xFF003258),
+    primaryContainer = Color(0xFF00497D),
+    secondary = Color(0xFFBBC7CE),
+    background = Color(0xFF1A1C1E),
+    surface = Color(0xFF1A1C1E),
+)
+
+@Composable
+fun AppTheme(
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    dynamicColor: Boolean = true, // Material You - Android 12+
+    content: @Composable () -> Unit
+) {
+    val colorScheme = when {
+        // Dynamic color cho Android 12+
+        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+            val context = LocalContext.current
+            if (darkTheme) dynamicDarkColorScheme(context)
+            else dynamicLightColorScheme(context)
+        }
+        darkTheme -> DarkColors
+        else -> LightColors
+    }
+    
+    MaterialTheme(
+        colorScheme = colorScheme,
+        typography = AppTypography,
+        shapes = AppShapes,
+        content = content
+    )
+}
+```
+
+### Shapes
+
+```kotlin
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Shapes
+import androidx.compose.ui.unit.dp
+
+val AppShapes = Shapes(
+    extraSmall = RoundedCornerShape(4.dp),
+    small = RoundedCornerShape(8.dp),
+    medium = RoundedCornerShape(12.dp),
+    large = RoundedCornerShape(16.dp),
+    extraLarge = RoundedCornerShape(24.dp)
+)
+```
+
+### Sử dụng Theme trong UI
+
+```kotlin
+@Composable
+fun ManHinhVoiTheme() {
+    // Truy cập màu từ theme
+    val colors = MaterialTheme.colorScheme
+    
+    // Truy cập typography từ theme
+    val typography = MaterialTheme.typography
+    
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(colors.background)
+            .padding(16.dp)
+    ) {
+        // Text với typography style
+        Text(
+            text = "Tiêu đề chính",
+            style = typography.headlineLarge,
+            color = colors.primary
+        )
+        
+        Text(
+            text = "Nội dung mô tả",
+            style = typography.bodyLarge,
+            color = colors.onBackground
+        )
+        
+        // Card tự động sử dụng theme colors
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = colors.surface
+            )
+        ) {
+            Text(
+                text = "Nội dung card",
+                modifier = Modifier.padding(16.dp),
+                color = colors.onSurface
+            )
+        }
+        
+        // Button với theme colors
+        Button(
+            onClick = { },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = colors.primary
+            )
+        ) {
+            Text("Nút chính", color = colors.onPrimary)
+        }
+    }
+}
+``
+
+### Dark/Light Mode Toggle
+
+```kotlin
+// State management cho theme
+class ThemeViewModel : ViewModel() {
+    private val _isDarkMode = MutableStateFlow(false)
+    val isDarkMode: StateFlow<Boolean> = _isDarkMode.asStateFlow()
+    
+    private val _useDynamicColor = MutableStateFlow(true)
+    val useDynamicColor: StateFlow<Boolean> = _useDynamicColor.asStateFlow()
+    
+    fun toggleDarkMode() {
+        _isDarkMode.value = !_isDarkMode.value
+    }
+    
+    fun toggleDynamicColor() {
+        _useDynamicColor.value = !_useDynamicColor.value
+    }
+}
+
+@Composable
+fun ManHinhCaiDat(viewModel: ThemeViewModel = viewModel()) {
+    val isDarkMode by viewModel.isDarkMode.collectAsState()
+    val useDynamicColor by viewModel.useDynamicColor.collectAsState()
+    
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text("Chế độ tối")
+            Switch(
+                checked = isDarkMode,
+                onCheckedChange = { viewModel.toggleDarkMode() }
+            )
+        }
+        
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text("Màu động (Android 12+)")
+            Switch(
+                checked = useDynamicColor,
+                onCheckedChange = { viewModel.toggleDynamicColor() }
+            )
+        }
+    }
+}
+```
+
+### Custom Font
+
+```kotlin
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+
+// Đặt font files trong res/font/
+val CustomFontFamily = FontFamily(
+    Font(R.font.opensans_regular, FontWeight.Normal),
+    Font(R.font.opensans_medium, FontWeight.Medium),
+    Font(R.font.opensans_bold, FontWeight.Bold),
+)
+
+// Sử dụng trong Typography
+val AppTypography = Typography(
+    bodyLarge = TextStyle(
+        fontFamily = CustomFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 16.sp
+    )
+)
+```
+
+### Mẹo thực tế
+
+> **💡 Tip**: Luôn sử dụng `MaterialTheme.colorScheme` thay vì hardcode màu. Điều này đảm bảo UI nhất quán và hỗ trợ dark mode tự động.
+
+> **⚠️ Lưu ý**: Dynamic color chỉ hoạt động trên Android 12+. Đảm bảo cung cấp fallback color scheme cho các phiên bản cũ hơn.
+
+> **🎯 Best Practice**: Tạo một Theme.kt file riêng chứa tất cả colors, typography, shapes. Điều này giúp dễ dàng maintain và thay đổi theme sau này.

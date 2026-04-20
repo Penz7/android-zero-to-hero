@@ -1,0 +1,358 @@
+## Security Basics
+
+### R8/ProGuard - Code Obfuscation
+
+```groovy
+// build.gradle (app)
+android {
+    buildTypes {
+        release {
+            minifyEnabled true     // Bật R8
+            shrinkResources true   // Loại bỏ resources không dùng
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'),
+                         'proguard-rules.pro'
+        }
+    }
+}
+
+// proguard-rules.pro
+# Giữ class cho serialization
+-keep class com.example.app.data.** { *; }
+
+# Giữ Retrofit interfaces
+-keepattributes Signature
+-keepattributes *Annotation*
+-keep class retrofit2.** { *; }
+
+# Giữ Moshi classes
+-keepclassmembers class * {
+    @com.squareup.moshi.Json <fields>;
+}
+
+# Giữ Room entities
+-keep class * extends androidx.room.RoomDatabase
+-keep @androidx.room.Entity class *
+-dontwarn androidx.room.paging.**
+
+# Giữ Hilt classes
+-keep class dagger.hilt.** { *; }
+-keep class javax.inject.** { *; }
+-keep class * extends dagger.hilt.android.internal.managers.ViewComponentManager$FragmentContextWrapper { *; }
+```
+
+### Network Security Config
+
+```xml
+<!-- res/xml/network_security_config.xml -->
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Production: Chỉ trust system CAs -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    
+    <!-- Debug: Cho phép thêm debug CAs -->
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="user" />
+            <certificates src="system" />
+        </trust-anchors>
+    </debug-overrides>
+    
+    <!-- Certificate Pinning cho domain cụ thể -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">api.example.com</domain>
+        <pin-set expiration="2025-01-01">
+            <pin digest="SHA-256">AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</pin>
+            <!-- Backup pin -->
+            <pin digest="SHA-256">BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=</pin>
+        </pin-set>
+    </domain-config>
+</network-security-config>
+
+<!-- AndroidManifest.xml -->
+<application
+    android:networkSecurityConfig="@xml/network_security_config"
+    ...>
+```
+
+### EncryptedSharedPreferences
+
+```kotlin
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKeys
+
+object SecureStorage {
+    
+    private val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
+    
+    private val encryptedPrefs by lazy {
+        EncryptedSharedPreferences.create(
+            "secure_prefs",
+            masterKeyAlias,
+            context,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    }
+    
+    // Lưu token an toàn
+    fun saveToken(token: String) {
+        encryptedPrefs.edit().putString("auth_token", token).apply()
+    }
+    
+    fun getToken(): String? {
+        return encryptedPrefs.getString("auth_token", null)
+    }
+    
+    fun clearToken() {
+        encryptedPrefs.edit().remove("auth_token").apply()
+    }
+    
+    // Lưu sensitive data
+    fun saveUserData(key: String, value: String) {
+        encryptedPrefs.edit().putString(key, value).apply()
+    }
+}
+```
+
+### Certificate Pinning với OkHttp
+
+```kotlin
+import okhttp3.CertificatePinner
+
+object SecureNetwork {
+    
+    // Tạo certificate pinner
+    private val certificatePinner = CertificatePinner.Builder()
+        .add(
+            "api.example.com",
+            "sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+            "sha256/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB="
+        )
+        .build()
+    
+    // OkHttp client với certificate pinning
+    fun createSecureClient(): OkHttpClient {
+        return OkHttpClient.Builder()
+            .certificatePinner(certificatePinner)
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .build()
+    }
+    
+    // Lấy certificate hash
+    // openssl s_client -connect api.example.com:443 | openssl x509 -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | openssl enc -base64
+}
+```
+
+### Input Validation
+
+```kotlin
+// Validators
+object Validators {
+    
+    fun isValidEmail(email: String): Boolean {
+        return email.matches(
+            "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$".toRegex()
+        )
+    }
+    
+    fun isValidPhone(phone: String): Boolean {
+        return phone.matches("^0[0-9]{9}$".toRegex())
+    }
+    
+    fun isValidPassword(password: String): Boolean {
+        // Ít nhất 8 ký tự, 1 chữ hoa, 1 chữ thường, 1 số
+        return password.matches(
+            "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z]).{8,}$".toRegex()
+        )
+    }
+    
+    fun sanitizeInput(input: String): String {
+        return input
+            .replace("<".toRegex(), "&lt;")
+            .replace(">".toRegex(), "&gt;")
+            .replace("\"".toRegex(), "&quot;")
+            .replace("'".toRegex(), "&#x27;")
+    }
+}
+
+// Usage trong ViewModel
+class LoginViewModel : ViewModel() {
+    
+    fun login(email: String, password: String) {
+        // Validate inputs
+        if (!Validators.isValidEmail(email)) {
+            _uiState.value = LoginUiState.Error("Email không hợp lệ")
+            return
+        }
+        
+        if (!Validators.isValidPassword(password)) {
+            _uiState.value = LoginUiState.Error("Mật khẩu không đủ mạnh")
+            return
+        }
+        
+        // Proceed with login
+    }
+}
+```
+
+### Secure API Communication
+
+```kotlin
+// Thêm security headers
+interface ApiService {
+    
+    @GET("users")
+    suspend fun getUsers(
+        @Header("Authorization") token: String,
+        @Header("X-Request-ID") requestId: String = UUID.randomUUID().toString(),
+        @Header("X-Timestamp") timestamp: String = System.currentTimeMillis().toString()
+    ): List<User>
+}
+
+// Request signing
+class SigningInterceptor : Interceptor {
+    override fun intercept(chain: Interceptor.Chain): Response {
+        val original = chain.request()
+        val timestamp = System.currentTimeMillis().toString()
+        val nonce = UUID.randomUUID().toString()
+        
+        // Tạo signature
+        val signature = generateSignature(
+            method = original.method,
+            path = original.url.encodedPath,
+            timestamp = timestamp,
+            nonce = nonce,
+            secret = BuildConfig.API_SECRET
+        )
+        
+        // Thêm headers
+        val signedRequest = original.newBuilder()
+            .header("X-Timestamp", timestamp)
+            .header("X-Nonce", nonce)
+            .header("X-Signature", signature)
+            .build()
+        
+        return chain.proceed(signedRequest)
+    }
+}
+```
+
+### Root Detection
+
+```kotlin
+object RootDetector {
+    
+    fun isDeviceRooted(): Boolean {
+        return checkRootBinaries() || checkSuExists() || checkRootProperties()
+    }
+    
+    private fun checkRootBinaries(): Boolean {
+        val paths = arrayOf(
+            "/system/app/Superuser.apk",
+            "/sbin/su",
+            "/system/bin/su",
+            "/system/xbin/su",
+            "/data/local/xbin/su",
+            "/data/local/bin/su",
+            "/system/sd/xbin/su",
+            "/system/bin/failsafe/su",
+            "/data/local/su"
+        )
+        return paths.any { File(it).exists() }
+    }
+    
+    private fun checkSuExists(): Boolean {
+        return try {
+            Runtime.getRuntime().exec("which su")
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+    
+    private fun checkRootProperties(): Boolean {
+        val properties = listOf(
+            "ro.debuggable",
+            "ro.secure"
+        )
+        return properties.any { prop ->
+            getSystemProperty(prop) == "1"
+        }
+    }
+}
+```
+
+### Security Best Practices Checklist
+
+```kotlin
+object SecurityChecklist {
+    
+    // 1. Data at rest
+    fun encryptSensitiveData() {
+        // Dùng EncryptedSharedPreferences
+        // Không lưu password/plain text
+    }
+    
+    // 2. Data in transit
+    fun secureTransmission() {
+        // HTTPS only
+        // Certificate pinning
+        // Request signing
+    }
+    
+    // 3. Authentication
+    fun secureAuth() {
+        // Token-based auth
+        // Refresh tokens
+        // Biometric authentication
+    }
+    
+    // 4. Code protection
+    fun protectCode() {
+        // R8/ProGuard
+        // Root detection
+        // Tamper detection
+    }
+}
+
+// Biometric Authentication
+class BiometricHelper(private val activity: FragmentActivity) {
+    
+    fun authenticate(callback: (Boolean) -> Unit) {
+        val biometricPrompt = BiometricPrompt(
+            activity,
+            ContextCompat.getMainExecutor(activity),
+            object : BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                    callback(true)
+                }
+                
+                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                    callback(false)
+                }
+            }
+        )
+        
+        val promptInfo = BiometricPrompt.PromptInfo.Builder()
+            .setTitle("Xác thực sinh trắc học")
+            .setSubtitle("Xác nhận danh tính của bạn")
+            .setNegativeButtonText("Hủy")
+            .build()
+        
+        biometricPrompt.authenticate(promptInfo)
+    }
+}
+```
+
+### Mẹo thực tế
+
+> **💡 Tip**: Luôn bật R8 cho release builds. Không chỉ bảo mật mà còn giảm kích thước APK.
+
+> **⚠️ Lưu ý**: Không bao giờ lưu sensitive data (password, API keys) trong SharedPreferences thường. Sử dụng EncryptedSharedPreferences hoặc Android Keystore.
+
+> **🎯 Best Practice**: Thực hiện security audit định kỳ. Sử dụng các công cụ như MobSF (Mobile Security Framework) để scan vulnerabilities.

@@ -1,0 +1,452 @@
+## Dependency Injection with Hilt
+
+### Giới thiệu Dependency Injection
+
+Dependency Injection (DI) là pattern cung cấp dependencies từ bên ngoài thay vì tự tạo bên trong class:
+
+```kotlin
+// ❌ Không có DI - class tự tạo dependencies
+class UserRepository {
+    private val apiService = RetrofitClient.apiService
+    private val database = AppDatabase.getInstance()
+}
+
+// ✅ Có DI - dependencies được inject từ bên ngoài
+class UserRepository @Inject constructor(
+    private val apiService: ApiService,
+    private val userDao: UserDao
+)
+```
+
+### Hilt Setup
+
+```kotlin
+// Application class
+@HiltAndroidApp
+class MyApplication : Application()
+
+// Trong AndroidManifest.xml
+<application
+    android:name=".MyApplication"
+    ...>
+</application>
+
+// dependencies
+// implementation "com.google.dagger:hilt-android:2.50"
+// kapt "com.google.dagger:hilt-android-compiler:2.50"
+// implementation "androidx.hilt:hilt-navigation-compose:1.1.0"
+```
+
+### @AndroidEntryPoint
+
+```kotlin
+// Activity
+@AndroidEntryPoint
+class MainActivity : ComponentActivity() {
+    // ViewModel tự động được inject
+    private val viewModel: MainViewModel by viewModels()
+}
+
+// Fragment
+@AndroidEntryPoint
+class UserFragment : Fragment() {
+    private val viewModel: UserViewModel by viewModels()
+    
+    // Inject field
+    @Inject
+    lateinit var analytics: AnalyticsService
+}
+
+// Service
+@AndroidEntryPoint
+class MyService : Service() {
+    @Inject
+    lateinit var repository: UserRepository
+}
+```
+
+### @Inject Constructor
+
+```kotlin
+// Đánh dấu constructor để Hilt biết cách tạo instance
+class UserRepository @Inject constructor(
+    private val apiService: ApiService,
+    private val userDao: UserDao,
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher
+)
+
+// Interface không thể dùng @Inject constructor
+interface UserRepository {
+    suspend fun getUsers(): List<User>
+}
+
+// Cần @Module và @Provides
+```
+
+### @Module và @Provides
+
+```kotlin
+@Module
+@InstallIn(SingletonComponent::class)
+object AppModule {
+    
+    // Cung cấp ApiService
+    @Provides
+    @Singleton
+    fun provideApiService(): ApiService {
+        return Retrofit.Builder()
+            .baseUrl("https://api.example.com/")
+            .addConverterFactory(MoshiConverterFactory.create())
+            .build()
+            .create(ApiService::class.java)
+    }
+    
+    // Cung cấp Database
+    @Provides
+    @Singleton
+    fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
+        return Room.databaseBuilder(
+            context,
+            AppDatabase::class.java,
+            "app_database"
+        ).build()
+    }
+    
+    // Cung cấp DAO từ Database
+    @Provides
+    fun provideUserDao(database: AppDatabase): UserDao {
+        return database.userDao()
+    }
+    
+    // Cung cấp interface implementation
+    @Provides
+    @Singleton
+    fun provideUserRepository(
+        apiService: ApiService,
+        userDao: UserDao
+    ): UserRepository {
+        return UserRepositoryImpl(apiService, userDao)
+    }
+}
+
+// Module cho các dependencies theo scope
+@Module
+@InstallIn(ViewModelComponent::class)
+object ViewModelModule {
+    
+    @Provides
+    fun provideGetUsersUseCase(
+        repository: UserRepository
+    ): GetUsersUseCase {
+        return GetUsersUseCase(repository)
+    }
+}
+```
+
+### @Binds cho Interface
+
+```kotlin
+// Interface
+interface UserRepository {
+    suspend fun getUsers(): List<User>
+}
+
+// Implementation
+class UserRepositoryImpl @Inject constructor(
+    private val apiService: ApiService
+) : UserRepository {
+    override suspend fun getUsers() = apiService.getUsers()
+}
+
+// Module với @Binds
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class RepositoryModule {
+    
+    @Binds
+    @Singleton
+    abstract fun bindUserRepository(
+        impl: UserRepositoryImpl
+    ): UserRepository
+}
+```
+
+### Scopes - Quản lý vòng đời
+
+```kotlin
+// @Singleton - tồn tại suốt vòng đời ứng dụng
+@Singleton
+class UserRepository @Inject constructor(...)
+
+// @ActivityScoped - tồn tại suốt vòng đời Activity
+@ActivityScoped
+class AnalyticsManager @Inject constructor(...)
+
+// @FragmentScoped - tồn tại suốt vòng đời Fragment
+@FragmentScoped
+class ImageLoader @Inject constructor(...)
+
+// @ViewModelScoped - tồn tại suốt vòng đời ViewModel
+@ViewModelScoped
+class GetUsersUseCase @Inject constructor(...)
+```
+
+### Named Dependencies
+
+```kotlin
+@Module
+@InstallIn(SingletonComponent::class)
+object NetworkModule {
+    
+    @Provides
+    @Singleton
+    @Named("baseUrl")
+    fun provideBaseUrl(): String = "https://api.example.com/"
+    
+    @Provides
+    @Singleton
+    @Named("authUrl")
+    fun provideAuthUrl(): String = "https://auth.example.com/"
+    
+    @Provides
+    @Singleton
+    fun provideApiService(
+        @Named("baseUrl") baseUrl: String
+    ): ApiService {
+        return Retrofit.Builder()
+            .baseUrl(baseUrl)
+            .build()
+            .create(ApiService::class.java)
+    }
+}
+```
+
+### Hilt với Compose
+
+```kotlin
+// Trong build.gradle
+// implementation "androidx.hilt:hilt-navigation-compose:1.1.0"
+
+@Composable
+fun UserScreen(
+    // Inject ViewModel qua hiltViewModel()
+    viewModel: UserViewModel = hiltViewModel()
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    
+    when (val state = uiState) {
+        is UserUiState.Loading -> LoadingScreen()
+        is UserUiState.Success -> UserList(state.users)
+        is UserUiState.Error -> ErrorScreen(state.message)
+    }
+}
+
+// ViewModel với @HiltViewModel
+@HiltViewModel
+class UserViewModel @Inject constructor(
+    private val getUsersUseCase: GetUsersUseCase,
+    private val savedStateHandle: SavedStateHandle
+) : ViewModel() {
+    
+    private val _uiState = MutableStateFlow<UserUiState>(UserUiState.Loading)
+    val uiState: StateFlow<UserUiState> = _uiState.asStateFlow()
+    
+    init {
+        loadUsers()
+    }
+    
+    private fun loadUsers() {
+        viewModelScope.launch {
+            _uiState.value = UserUiState.Loading
+            try {
+                val users = getUsersUseCase()
+                _uiState.value = UserUiState.Success(users)
+            } catch (e: Exception) {
+                _uiState.value = UserUiState.Error(e.message ?: "Lỗi")
+            }
+        }
+    }
+}
+```
+
+### Qualifiers với Annotation
+
+```kotlin
+// Tạo qualifier annotations
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class IoDispatcher
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class MainDispatcher
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class DefaultDispatcher
+
+@Module
+@InstallIn(SingletonComponent::class)
+object CoroutineModule {
+    
+    @Provides
+    @IoDispatcher
+    fun provideIoDispatcher(): CoroutineDispatcher = Dispatchers.IO
+    
+    @Provides
+    @MainDispatcher
+    fun provideMainDispatcher(): CoroutineDispatcher = Dispatchers.Main
+    
+    @Provides
+    @DefaultDispatcher
+    fun provideDefaultDispatcher(): CoroutineDispatcher = Dispatchers.Default
+}
+
+// Sử dụng
+class UserRepository @Inject constructor(
+    private val apiService: ApiService,
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher
+) {
+    suspend fun getUsers() = withContext(ioDispatcher) {
+        apiService.getUsers()
+    }
+}
+```
+
+### Testing với Hilt
+
+```kotlin
+@HiltAndroidTest
+class UserRepositoryTest {
+    
+    @get:Rule
+    var hiltRule = HiltAndroidRule(this)
+    
+    @Inject
+    lateinit var repository: UserRepository
+    
+    @Before
+    fun setup() {
+        hiltRule.inject()
+    }
+    
+    @Test
+    fun testGetUsers() = runTest {
+        val users = repository.getUsers()
+        assertNotNull(users)
+    }
+}
+
+// Test module để inject fake dependencies
+@Module
+@InstallIn(SingletonComponent::class)
+object TestNetworkModule {
+    
+    @Provides
+    @Singleton
+    fun provideFakeApiService(): ApiService {
+        return FakeApiService()
+    }
+}
+```
+
+### Complete Example
+
+```kotlin
+// 1. Entity
+@Entity(tableName = "users")
+data class UserEntity(
+    @PrimaryKey val id: Int,
+    val name: String,
+    val email: String
+)
+
+// 2. DAO
+@Dao
+interface UserDao {
+    @Query("SELECT * FROM users")
+    fun getAll(): Flow<List<UserEntity>>
+    
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(users: List<UserEntity>)
+}
+
+// 3. API Service
+interface ApiService {
+    @GET("users")
+    suspend fun getUsers(): List<User>
+}
+
+// 4. Repository Interface
+interface UserRepository {
+    fun getUsers(): Flow<Resource<List<User>>>
+}
+
+// 5. Repository Implementation
+class UserRepositoryImpl @Inject constructor(
+    private val apiService: ApiService,
+    private val userDao: UserDao
+) : UserRepository {
+    override fun getUsers(): Flow<Resource<List<User>>> = flow {
+        emit(Resource.Loading())
+        emitAll(userDao.getAll().map { entities ->
+            Resource.Success(entities.map { it.toDomain() })
+        })
+        try {
+            val remoteUsers = apiService.getUsers()
+            userDao.insertAll(remoteUsers.map { it.toEntity() })
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Lỗi"))
+        }
+    }.flowOn(Dispatchers.IO)
+}
+
+// 6. Use Case
+class GetUsersUseCase @Inject constructor(
+    private val repository: UserRepository
+) {
+    operator fun invoke() = repository.getUsers()
+}
+
+// 7. ViewModel
+@HiltViewModel
+class UserViewModel @Inject constructor(
+    private val getUsersUseCase: GetUsersUseCase
+) : ViewModel() {
+    val users = getUsersUseCase()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), Resource.Loading())
+}
+
+// 8. Module
+@Module
+@InstallIn(SingletonComponent::class)
+object AppModule {
+    @Provides
+    @Singleton
+    fun provideApiService(): ApiService = Retrofit.Builder()
+        .baseUrl("https://api.example.com/")
+        .addConverterFactory(MoshiConverterFactory.create())
+        .build()
+        .create(ApiService::class.java)
+    
+    @Provides
+    @Singleton
+    fun provideDatabase(@ApplicationContext context: Context): AppDatabase =
+        Room.databaseBuilder(context, AppDatabase::class.java, "app.db").build()
+    
+    @Provides
+    fun provideUserDao(db: AppDatabase): UserDao = db.userDao()
+    
+    @Provides
+    @Singleton
+    fun provideUserRepository(impl: UserRepositoryImpl): UserRepository = impl
+}
+```
+
+### Mẹo thực tế
+
+> **💡 Tip**: Sử dụng `@ViewModelScoped` cho các UseCase để chúng sống cùng ViewModel và tự động được giải phóng khi ViewModel bị destroy.
+
+> **⚠️ Lưu ý**: Không inject Context vào ViewModel. Nếu cần Context, hãy inject Application hoặc sử dụng `@ApplicationContext`.
+
+> **🎯 Best Practice**: Tách các Module theo chức năng (NetworkModule, DatabaseModule, RepositoryModule) để dễ quản lý và test.

@@ -1,0 +1,188 @@
+## Điều kiện, When Expression & Loops
+
+### Câu lệnh if/else
+
+Kotlin không có toán tử ba ngôi (ternary). Thay vào đó, `if` có thể trả về giá trị:
+
+```kotlin
+fun main() {
+    val diem = 85
+    
+    // if/else truyền thống
+    if (diem >= 90) {
+        println("Xuất sắc!")
+    } else if (diem >= 70) {
+        println("Khá tốt!")
+    } else {
+        println("Cần cố gắng hơn!")
+    }
+    
+    // if như expression - trả về giá trị
+    val xepLoai = if (diem >= 90) {
+        "A"
+    } else if (diem >= 80) {
+        "B"
+    } else if (diem >= 70) {
+        "C"
+    } else {
+        "D"
+    }
+    println("Xếp loại: $xepLoai") // Xếp loại: B
+    
+    // if một dòng
+    val ketQua = if (diem >= 50) "Đậu" else "Rớt"
+    println(ketQua)
+}
+```
+
+### When Expression
+
+`when` là phiên bản nâng cao của `switch` trong Java, mạnh mẽ và linh hoạt hơn nhiều:
+
+```kotlin
+fun main() {
+    val ngay = "Monday"
+    
+    // when như statement
+    when (ngay) {
+        "Monday" -> println("Thứ Hai")
+        "Tuesday" -> println("Thứ Ba")
+        "Wednesday" -> println("Thứ Tư")
+        "Thursday" -> println("Thứ Năm")
+        "Friday" -> println("Thứ Sáu")
+        "Saturday", "Sunday" -> println("Cuối tuần!")
+        else -> println("Không hợp lệ")
+    }
+    
+    // when như expression - trả về giá trị
+    val tenNgay = when (ngay) {
+        "Monday" -> "Thứ Hai"
+        "Tuesday" -> "Thứ Ba"
+        "Wednesday" -> "Thứ Tư"
+        "Thursday" -> "Thứ Năm"
+        "Friday" -> "Thứ Sáu"
+        in listOf("Saturday", "Sunday") -> "Cuối tuần"
+        else -> "Không xác định"
+    }
+    println("Ngày: $tenNgay")
+    
+    // when với range và điều kiện phức tạp
+    val nhietDo = 28
+    val thoiTiet = when (nhietDo) {
+        in 0..15 -> "Lạnh"
+        in 16..25 -> "Mát mẻ"
+        in 26..35 -> "Nóng"
+        else -> "Rất nóng hoặc rất lạnh"
+    }
+    println("Thời tiết: $thoiTiet")
+    
+    // when không có tham số - dùng điều kiện boolean
+    val diem = 85
+    val ketQua = when {
+        diem >= 90 -> "Xuất sắc"
+        diem >= 70 -> "Khá tốt"
+        diem >= 50 -> "Trung bình"
+        else -> "Yếu"
+    }
+}
+```
+
+### Vòng lặp for
+
+```kotlin
+fun main() {
+    // for với range
+    for (i in 1..5) {
+        print("$i ") // 1 2 3 4 5
+    }
+    println()
+    
+    // for với until (không bao gồm giá trị cuối)
+    for (i in 1 until 5) {
+        print("$i ") // 1 2 3 4
+    }
+    println()
+    
+    // for với step (bước nhảy)
+    for (i in 0..10 step 2) {
+        print("$i ") // 0 2 4 6 8 10
+    }
+    println()
+    
+    // for giảm dần
+    for (i in 5 downTo 1) {
+        print("$i ") // 5 4 3 2 1
+    }
+    println()
+    
+    // for với collection
+    val monAn = listOf("Phở", "Bún chả", "Bánh mì")
+    for (mon in monAn) {
+        println("Món: $mon")
+    }
+    
+    // for với index
+    for ((index, mon) in monAn.withIndex()) {
+        println("$index: $mon")
+    }
+}
+```
+
+### Vòng lặp while và do-while
+
+```kotlin
+fun main() {
+    // while - kiểm tra điều kiện trước khi lặp
+    var dem = 5
+    while (dem > 0) {
+        println("Đếm: $dem")
+        dem--
+    }
+    
+    // do-while - thực hiện ít nhất 1 lần
+    var so = 1
+    do {
+        println("Bình phương: ${so * so}")
+        so *= 2
+    } while (so < 100)
+    
+    // break - thoát khỏi vòng lặp
+    for (i in 1..10) {
+        if (i == 5) break
+        print("$i ") // 1 2 3 4
+    }
+    
+    // continue - bỏ qua lần lặp hiện tại
+    println()
+    for (i in 1..10) {
+        if (i % 2 == 0) continue
+        print("$i ") // 1 3 5 7 9
+    }
+}
+```
+
+### Return Labels - Trả về từ vòng lặp lồng nhau
+
+```kotlin
+fun main() {
+    // Label cho outer loop
+    outer@ for (i in 1..3) {
+        for (j in 1..3) {
+            if (i == 2 && j == 2) break@outer
+            println("i=$i, j=$j")
+        }
+    }
+    
+    // forEach với label
+    listOf(1, 2, 3, 4, 5).forEach lamda@{
+        if (it == 3) return@lamda // Tiếp tục, không dừng
+        println(it)
+    }
+}
+```
+
+### Mẹo thực tế
+
+> **💡 Tip**: Trong Android, `when` thường được sử dụng để xử lý trạng thái UI. Ví dụ: `when (uiState) { is Loading -> showProgress(), is Success -> showData(), is Error -> showError() }`
+
+> **⚠️ Lưu ý**: Khi xử lý View binding, hãy dùng `when` để thay thế chuỗi if-else dài dòng. Code sẽ sạch sẽ hơn nhiều!

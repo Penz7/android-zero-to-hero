@@ -1,0 +1,395 @@
+## UI Testing
+
+### Compose Testing Setup
+
+```kotlin
+// dependencies
+androidTestImplementation "androidx.compose.ui:ui-test-junit4:1.5.0"
+debugImplementation "androidx.compose.ui:ui-test-manifest:1.5.0"
+androidTestImplementation "androidx.compose.ui:ui-test-junit4:1.5.0"
+```
+
+### ComposeTestRule
+
+```kotlin
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.*
+
+class UserScreenTest {
+    
+    @get:Rule
+    val composeTestRule = createComposeRule()
+    
+    @Test
+    fun `user list displays users correctly`() {
+        // Given
+        val users = listOf(
+            User(1, "Minh", "minh@test.com"),
+            User(2, "Tuấn", "tuan@test.com")
+        )
+        
+        // When
+        composeTestRule.setContent {
+            MaterialTheme {
+                UserListScreen(users = users)
+            }
+        }
+        
+        // Then
+        composeTestRule.onNodeWithText("Minh").assertExists()
+        composeTestRule.onNodeWithText("Tuấn").assertExists()
+        composeTestRule.onNodeWithText("minh@test.com").assertExists()
+    }
+}
+```
+
+### Finding Nodes
+
+```kotlin
+class FindingNodesTest {
+    
+    @get:Rule
+    val composeTestRule = createComposeRule()
+    
+    @Test
+    fun `find nodes by different matchers`() {
+        composeTestRule.setContent {
+            MaterialTheme {
+                Column {
+                    Text("Tiêu đề", style = MaterialTheme.typography.headlineMedium)
+                    Button(onClick = {}) { Text("Nhấn") }
+                    TextField(
+                        value = "",
+                        onValueChange = {},
+                        label = { Text("Nhập tên") }
+                    )
+                }
+            }
+        }
+        
+        // Find by text
+        composeTestRule.onNodeWithText("Tiêu đề").assertExists()
+        
+        // Find by content description
+        composeTestRule.onNodeWithContentDescription("Nhấn").assertExists()
+        
+        // Find by test tag
+        composeTestRule.onNodeWithTag("input_field").assertExists()
+        
+        // Find by semantics
+        composeTestRule.onNode(hasText("Tiêu đề")).assertExists()
+        composeTestRule.onNode(isSelectable()).assertExists()
+    }
+}
+```
+
+### Performing Actions
+
+```kotlin
+class ActionTest {
+    
+    @get:Rule
+    val composeTestRule = createComposeRule()
+    
+    @Test
+    fun `button click increments counter`() {
+        var count = 0
+        
+        composeTestRule.setContent {
+            MaterialTheme {
+                Column {
+                    Text("Count: $count")
+                    Button(onClick = { count++ }) {
+                        Text("Tăng")
+                    }
+                }
+            }
+        }
+        
+        // Perform click
+        composeTestRule.onNodeWithText("Tăng").performClick()
+        
+        // Verify
+        composeTestRule.onNodeWithText("Count: 1").assertExists()
+    }
+    
+    @Test
+    fun `text input works correctly`() {
+        var text = ""
+        
+        composeTestRule.setContent {
+            MaterialTheme {
+                TextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    label = { Text("Nhập") }
+                )
+            }
+        }
+        
+        // Perform text input
+        composeTestRule.onNodeWithText("Nhập")
+            .performTextInput("Xin chào")
+        
+        // Verify
+        composeTestRule.onNodeWithText("Xin chào").assertExists()
+    }
+}
+```
+
+### Assertions
+
+```kotlin
+class AssertionTest {
+    
+    @get:Rule
+    val composeTestRule = createComposeRule()
+    
+    @Test
+    fun `verify assertions`() {
+        composeTestRule.setContent {
+            MaterialTheme {
+                Column {
+                    Text("Visible text")
+                    Text("Disabled", enabled = false)
+                    Button(onClick = {}) { Text("Click me") }
+                }
+            }
+        }
+        
+        // Existence
+        composeTestRule.onNodeWithText("Visible text").assertExists()
+        composeTestRule.onNodeWithText("Not found").assertDoesNotExist()
+        
+        // Visibility
+        composeTestRule.onNodeWithText("Visible text").assertIsDisplayed()
+        
+        // State
+        composeTestRule.onNodeWithText("Disabled").assertIsNotEnabled()
+        composeTestRule.onNodeWithText("Click me").assertIsEnabled()
+        
+        // Count
+        composeTestRule.onAllNodesWithText("Text").assertCountEquals(1)
+    }
+}
+```
+
+### TestTags
+
+```kotlin
+// Đánh dấu composables với testTag
+@Composable
+fun LoginScreen() {
+    Column {
+        TextField(
+            value = "",
+            onValueChange = {},
+            modifier = Modifier.testTag("email_input"),
+            label = { Text("Email") }
+        )
+        TextField(
+            value = "",
+            onValueChange = {},
+            modifier = Modifier.testTag("password_input"),
+            label = { Text("Mật khẩu") }
+        )
+        Button(
+            onClick = {},
+            modifier = Modifier.testTag("login_button")
+        ) {
+            Text("Đăng nhập")
+        }
+    }
+}
+
+// Test với testTag
+class LoginScreenTest {
+    
+    @get:Rule
+    val composeTestRule = createComposeRule()
+    
+    @Test
+    fun `login form validation`() {
+        composeTestRule.setContent {
+            MaterialTheme { LoginScreen() }
+        }
+        
+        // Find by testTag
+        composeTestRule.onNodeWithTag("email_input")
+            .performTextInput("test@email.com")
+        
+        composeTestRule.onNodeWithTag("password_input")
+            .performTextInput("password123")
+        
+        composeTestRule.onNodeWithTag("login_button")
+            .performClick()
+    }
+}
+```
+
+### Testing với ViewModel
+
+```kotlin
+class UserScreenWithViewModelTest {
+    
+    @get:Rule
+    val composeTestRule = createComposeRule()
+    
+    private val mockViewModel = mock<UserViewModel>()
+    
+    @Before
+    fun setup() {
+        whenever(mockViewModel.uiState).thenReturn(
+            MutableStateFlow(UserUiState.Success(listOf(
+                User(1, "Test User", "test@test.com")
+            )))
+        )
+    }
+    
+    @Test
+    fun `displays users from viewModel`() {
+        composeTestRule.setContent {
+            MaterialTheme {
+                UserScreen(viewModel = mockViewModel)
+            }
+        }
+        
+        composeTestRule.onNodeWithText("Test User").assertExists()
+    }
+}
+```
+
+### Screenshot Tests
+
+```kotlin
+class ScreenshotTest {
+    
+    @get:Rule
+    val composeTestRule = createComposeRule()
+    
+    @Test
+    fun `capture login screen screenshot`() {
+        composeTestRule.setContent {
+            MaterialTheme {
+                LoginScreen()
+            }
+        }
+        
+        // Take screenshot
+        composeTestRule
+            .onRoot()
+            .captureToImage()
+            .asAndroidBitmap()
+            .saveToFile("login_screen.png")
+    }
+}
+```
+
+### Testing Navigation
+
+```kotlin
+class NavigationTest {
+    
+    @get:Rule
+    val composeTestRule = createComposeRule()
+    
+    @Test
+    fun `navigation from home to detail`() {
+        composeTestRule.setContent {
+            val navController = rememberNavController()
+            
+            NavHost(navController, startDestination = "home") {
+                composable("home") {
+                    Button(onClick = { navController.navigate("detail") }) {
+                        Text("Go to Detail")
+                    }
+                }
+                composable("detail") {
+                    Text("Detail Screen")
+                }
+            }
+        }
+        
+        // Verify home screen
+        composeTestRule.onNodeWithText("Go to Detail").assertExists()
+        
+        // Navigate
+        composeTestRule.onNodeWithText("Go to Detail").performClick()
+        
+        // Verify detail screen
+        composeTestRule.onNodeWithText("Detail Screen").assertExists()
+    }
+}
+```
+
+### Idling Resources cho Async
+
+```kotlin
+class AsyncTest {
+    
+    @get:Rule
+    val composeTestRule = createComposeRule()
+    
+    @Test
+    fun `loading indicator disappears after data loads`() {
+        composeTestRule.setContent {
+            var isLoading by remember { mutableStateOf(true) }
+            
+            LaunchedEffect(Unit) {
+                delay(1000)
+                isLoading = false
+            }
+            
+            if (isLoading) {
+                CircularProgressIndicator()
+            } else {
+                Text("Data loaded")
+            }
+        }
+        
+        // Wait for async operation
+        composeTestRule.waitUntil(timeoutMillis = 5000) {
+            composeTestRule
+                .onAllNodesWithText("Data loaded")
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+        
+        composeTestRule.onNodeWithText("Data loaded").assertExists()
+    }
+}
+```
+
+### Test Helpers
+
+```kotlin
+// Extension functions để test dễ hơn
+fun SemanticsNodeInteraction.assertTextEquals(expected: String): SemanticsNodeInteraction {
+    assertEquals(expected, fetchSemanticsNode().config[SemanticsProperties.Text].first().text)
+    return this
+}
+
+fun SemanticsNodeInteraction.performTextInputClear(): SemanticsNodeInteraction {
+    performTextInput("")
+    return this
+}
+
+// Fake cho testing
+class FakeUserRepository : UserRepository {
+    private val users = mutableListOf<User>()
+    
+    override fun getUsers() = flowOf(Resource.Success(users.toList()))
+    override suspend fun getUserById(id: Int) = Resource.Success(users.find { it.id == id })
+    override suspend fun createUser(user: User): Resource<User> {
+        users.add(user)
+        return Resource.Success(user)
+    }
+}
+```
+
+### Mẹo thực tế
+
+> **💡 Tip**: Sử dụng `testTag` để đánh dấu các composables quan trọng. Điều này giúp test dễ dàng hơn và không bị ảnh hưởng khi thay đổi text.
+
+> **⚠️ Lưu ý**: Tránh test implementation details. Test hành vi (behavior) thay vì cách UI được render.
+
+> **🎯 Best Practice**: Viết UI test cho các user flow quan trọng: Login, Register, Main feature. Không cần test mọi UI state.

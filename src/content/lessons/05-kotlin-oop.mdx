@@ -1,0 +1,220 @@
+## Lớp, Đối tượng, Kế thừa & Interface
+
+### Class cơ bản
+
+Trong Kotlin, class được khai báo bằng từ khóa `class`. Constructor chính được khai báo ngay trong header:
+
+```kotlin
+// Class đơn giản với primary constructor
+class SinhVien(
+    val ten: String,     // Property - tự động tạo getter
+    var tuoi: Int,       // Property - tự động tạo getter/setter
+    private val mssv: String // Private - chỉ truy cập trong class
+) {
+    // Method
+    fun hienThiThongTin() {
+        println("Tên: $ten, Tuổi: $tuoi, MSSV: $mssv")
+    }
+    
+    // Init block - chạy khi đối tượng được tạo
+    init {
+        require(tuoi > 0) { "Tuổi phải lớn hơn 0" }
+    }
+}
+
+fun main() {
+    val sv = SinhVien("Nguyễn Văn A", 20, "SV001")
+    sv.hienThiThongTin()
+    println(sv.ten) // Có thể truy cập public property
+    // println(sv.mssv) // ❌ Lỗi: mssv là private
+}
+```
+
+### Secondary Constructor
+
+```kotlin
+class NhanVien(
+    val ten: String,
+    var luong: Double
+) {
+    var phongBan: String = "Chưa xác định"
+    
+    // Secondary constructor - phải gọi primary constructor
+    constructor(ten: String, luong: Double, phongBan: String) : this(ten, luong) {
+        this.phongBan = phongBan
+    }
+}
+```
+
+### Kế thừa (Inheritance)
+
+Mặc định các class trong Kotlin là `final`. Cần dùng `open` để cho phép kế thừa:
+
+```kotlin
+// Base class - phải đánh dấu open
+open class DongVat(val ten: String) {
+    open fun keu() {
+        println("$ten phát ra tiếng kêu")
+    }
+    
+    // open function - có thể override
+    open fun an() {
+        println("$ten đang ăn")
+    }
+}
+
+// Derived class - kế thừa từ DongVat
+class Cho(ten: String) : DongVat(ten) {
+    override fun keu() {
+        println("$ten sủa: Gâu gâu!")
+    }
+}
+
+class Meo(ten: String) : DongVat(ten) {
+    override fun keu() {
+        println("$ten kêu: Meo meo!")
+    }
+}
+
+fun main() {
+    val cho = Cho("Buddy")
+    cho.keu() // Buddy sủa: Gâu gâu!
+    
+    val meo = Meo("Kitty")
+    meo.keu() // Kitty kêu: Meo meo!
+}
+```
+
+### Interface
+
+Interface định nghĩa hành vi mà class phải triển khai:
+
+```kotlin
+interface HienThi {
+    // Abstract method - không có body
+    fun hienThiThongTin()
+    
+    // Default implementation
+    fun hienThiLoiNhan(loiNhan: String) {
+        println("Lời nhắn: $loiNhan")
+    }
+}
+
+interface CapNhat {
+    fun capNhat()
+}
+
+// Class triển khai nhiều interface
+class UngDung(val ten: String) : HienThi, CapNhat {
+    override fun hienThiThongTin() {
+        println("Ứng dụng: $ten")
+    }
+    
+    override fun capNhat() {
+        println("$ten đang cập nhật...")
+    }
+}
+```
+
+### Abstract Class
+
+Abstract class là sự kết hợp giữa class và interface:
+
+```kotlin
+abstract class HinhHoc {
+    abstract fun tinhDienTich(): Double
+    abstract fun tinhChuVi(): Double
+    
+    // Concrete method - có implementation
+    fun hienThiThongTin() {
+        println("Diện tích: ${tinhDienTich()}")
+        println("Chu vi: ${tinhChuVi()}")
+    }
+}
+
+class HinhTron(val banKinh: Double) : HinhHoc() {
+    override fun tinhDienTich() = Math.PI * banKinh * banKinh
+    override fun tinhChuVi() = 2 * Math.PI * banKinh
+}
+
+class HinhChuNhat(val dai: Double, val rong: Double) : HinhHoc() {
+    override fun tinhDienTich() = dai * rong
+    override fun tinhChuVi() = 2 * (dai + rong)
+}
+```
+
+### Data Class
+
+Data class tự động tạo `toString()`, `equals()`, `hashCode()`, `copy()`:
+
+```kotlin
+data class DiaChi(
+    val soNha: String,
+    val duong: String,
+    val thanhPho: String
+)
+
+data class NguoiDung(
+    val ten: String,
+    val tuoi: Int,
+    val diaChi: DiaChi
+)
+
+fun main() {
+    val diaChi1 = DiaChi("123", "Nguyễn Huệ", "TP.HCM")
+    val user1 = NguoiDung("Minh", 25, diaChi1)
+    val user2 = user1.copy(ten = "Tuấn")
+    
+    println(user1) // NguoiDung(ten=Minh, tuoi=25, diaChi=...)
+    println(user1 == user2) // false
+    
+    // Destructuring
+    val (ten, tuoi) = user1
+    println("Tên: $ten, Tuổi: $tuoi")
+}
+```
+
+### Sealed Class
+
+Sealed class giới hạn các class con trong cùng file:
+
+```kotlin
+sealed class KetQua {
+    data class ThanhCong(val duLieu: String) : KetQua()
+    data class ThatBai(val loi: String) : KetQua()
+    object DangTai : KetQua()
+}
+
+fun xuLyKetQua(ketQua: KetQua) {
+    when (ketQua) {
+        is KetQua.ThanhCong -> println("Dữ liệu: ${ketQua.duLieu}")
+        is KetQua.ThatBai -> println("Lỗi: ${ketQua.loi}")
+        is KetQua.DangTai -> println("Đang tải...")
+    }
+}
+```
+
+### Enum Class
+
+```kotlin
+enum class MauSac(val maHex: String) {
+    DO("#FF0000"),
+    XANH_LUC("#00FF00"),
+    XANH_DUONG("#0000FF");
+    
+    fun hienThi() {
+        println("$name có mã màu: $maHex")
+    }
+}
+
+fun main() {
+    val mau = MauSac.DO
+    mau.hienThi() // DO có mã màu: #FF0000
+}
+```
+
+### Mẹo thực tế
+
+> **💡 Tip**: Trong Android, sử dụng data class cho Data Transfer Objects (DTOs) và sealed class cho UI states. Ví dụ: `sealed class UiState { object Loading : UiState(), data class Success(val data: List<Item>) : UiState(), data class Error(val message: String) : UiState() }`
+
+> **⚠️ Lưu ý**: Data class rất quan trọng cho Room database entities và API response objects. Hãy luôn nhớ rằng data class tự động implement equals/hashCode dựa trên các property trong constructor.

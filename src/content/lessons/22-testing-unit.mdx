@@ -1,0 +1,347 @@
+## Unit Testing
+
+### JUnit 5 Setup
+
+```kotlin
+// dependencies trong build.gradle
+testImplementation "org.junit.jupiter:junit-jupiter-api:5.10.1"
+testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine:5.10.1"
+testImplementation "org.mockito.kotlin:mockito-kotlin:5.2.1"
+testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3"
+testImplementation "app.cash.turbine:turbine:1.0.0"
+
+// Cho Android tests
+androidTestImplementation "androidx.test.ext:junit:1.1.5"
+androidTestImplementation "androidx.test.espresso:espresso-core:3.5.1"
+```
+
+### Basic Unit Tests
+
+```kotlin
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Assertions.*
+
+class CalculatorTest {
+    
+    @Test
+    fun `cong hai so nguyen`() {
+        val result = Calculator.add(2, 3)
+        assertEquals(5, result)
+    }
+    
+    @Test
+    fun `tru hai so nguyen`() {
+        val result = Calculator.subtract(10, 3)
+        assertEquals(7, result)
+    }
+    
+    @Test
+    fun `nhan voi 0`() {
+        val result = Calculator.multiply(5, 0)
+        assertEquals(0, result)
+    }
+    
+    @Test
+    fun `chia cho 0 throw exception`() {
+        assertThrows<ArithmeticException> {
+            Calculator.divide(10, 0)
+        }
+    }
+}
+```
+
+### Mockito cho Unit Tests
+
+```kotlin
+import org.mockito.kotlin.*
+
+class UserViewModelTest {
+    
+    private lateinit var viewModel: UserViewModel
+    private val mockUserRepository = mock<UserRepository>()
+    private val mockGetUsersUseCase = mock<GetUsersUseCase>()
+    
+    @BeforeEach
+    fun setup() {
+        viewModel = UserViewModel(mockGetUsersUseCase)
+    }
+    
+    @Test
+    fun `loadUsers should emit Success when repository returns data`() = runTest {
+        // Given
+        val fakeUsers = listOf(
+            User(1, "Minh", "minh@test.com"),
+            User(2, "Tuấn", "tuan@test.com")
+        )
+        whenever(mockGetUsersUseCase()).thenReturn(flowOf(Resource.Success(fakeUsers)))
+        
+        // When
+        viewModel.loadUsers()
+        
+        // Then
+        assertEquals(
+            UserUiState.Success(fakeUsers),
+            viewModel.uiState.value
+        )
+    }
+    
+    @Test
+    fun `loadUsers should emit Error when repository throws exception`() = runTest {
+        // Given
+        whenever(mockGetUsersUseCase()).thenReturn(
+            flowOf(Resource.Error("Lỗi mạng"))
+        )
+        
+        // When
+        viewModel.loadUsers()
+        
+        // Then
+        assertEquals(
+            UserUiState.Error("Lỗi mạng"),
+            viewModel.uiState.value
+        )
+    }
+    
+    @Test
+    fun `deleteUser should call repository delete`() = runTest {
+        // Given
+        whenever(mockUserRepository.deleteUser(1)).thenReturn(Resource.Success(Unit))
+        
+        // When
+        viewModel.deleteUser(1)
+        
+        // Then
+        verify(mockUserRepository).deleteUser(1)
+    }
+}
+```
+
+### Testing Coroutines
+
+```kotlin
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.TestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+
+class CoroutineTest {
+    
+    @Test
+    fun `test suspend function`() = runTest {
+        val result = suspendFunction()
+        assertEquals("expected", result)
+    }
+    
+    @Test
+    fun `test flow emission`() = runTest {
+        val flow = flow {
+            emit(1)
+            emit(2)
+            emit(3)
+        }
+        
+        val results = mutableListOf<Int>()
+        flow.collect { results.add(it) }
+        
+        assertEquals(listOf(1, 2, 3), results)
+    }
+    
+    @Test
+    fun `test flow with Turbine`() = runTest {
+        val flow = flowOf(1, 2, 3)
+        
+        flow.test {
+            assertEquals(1, awaitItem())
+            assertEquals(2, awaitItem())
+            assertEquals(3, awaitItem())
+            awaitComplete()
+        }
+    }
+}
+```
+
+### Testing Use Cases
+
+```kotlin
+class GetUsersUseCaseTest {
+    
+    private lateinit var useCase: GetUsersUseCase
+    private val mockRepository = mock<UserRepository>()
+    
+    @BeforeEach
+    fun setup() {
+        useCase = GetUsersUseCase(mockRepository)
+    }
+    
+    @Test
+    fun `invoke should return users from repository`() = runTest {
+        // Given
+        val expectedUsers = listOf(User(1, "Test", "test@test.com"))
+        whenever(mockRepository.getUsers()).thenReturn(
+            flowOf(Resource.Success(expectedUsers))
+        )
+        
+        // When
+        val result = useCase()
+        
+        // Then
+        result.test {
+            val loading = awaitItem()
+            assertTrue(loading is Resource.Loading)
+            
+            val success = awaitItem()
+            assertTrue(success is Resource.Success)
+            assertEquals(expectedUsers, success.data)
+            
+            awaitComplete()
+        }
+    }
+}
+```
+
+### Testing Repository
+
+```kotlin
+class UserRepositoryImplTest {
+    
+    private lateinit var repository: UserRepositoryImpl
+    private val mockRemoteDataSource = mock<UserRemoteDataSource>()
+    private val mockLocalDataSource = mock<UserLocalDataSource>()
+    
+    @BeforeEach
+    fun setup() {
+        repository = UserRepositoryImpl(mockRemoteDataSource, mockLocalDataSource)
+    }
+    
+    @Test
+    fun `getUsers should emit local data then remote`() = runTest {
+        // Given
+        val localUsers = listOf(UserEntity(1, "Local", "local@test.com"))
+        val remoteUsers = listOf(UserDto(1, "Remote", "remote@test.com", null))
+        
+        whenever(mockLocalDataSource.getUsers()).thenReturn(flowOf(localUsers))
+        whenever(mockRemoteDataSource.getUsers()).thenReturn(remoteUsers)
+        
+        // When & Then
+        repository.getUsers().test {
+            val loading = awaitItem()
+            assertTrue(loading is Resource.Loading)
+            
+            val localData = awaitItem()
+            assertTrue(localData is Resource.Success)
+            assertEquals(1, localData.data?.size)
+            
+            awaitComplete()
+        }
+        
+        verify(mockLocalDataSource).insertUsers(any())
+    }
+}
+```
+
+### Parameterized Tests
+
+```kotlin
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
+import org.junit.jupiter.params.provider.ValueSource
+
+class ParameterizedTest {
+    
+    @ParameterizedTest
+    @ValueSource(ints = [1, 2, 3, 4, 5])
+    fun `is positive`(number: Int) {
+        assertTrue(number > 0)
+    }
+    
+    @ParameterizedTest
+    @CsvSource(
+        "1, 2, 3",
+        "10, 20, 30",
+        "100, 200, 300"
+    )
+    fun `addition`(a: Int, b: Int, expected: Int) {
+        assertEquals(expected, Calculator.add(a, b))
+    }
+}
+```
+
+### Test Rules và Setup
+
+```kotlin
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.extension.ExtendWith
+
+class MainCoroutineRule(
+    private val testDispatcher: TestDispatcher = UnconfinedTestDispatcher()
+) : TestWatcher() {
+    
+    override fun starting(description: Description?) {
+        Dispatchers.setMain(testDispatcher)
+    }
+    
+    override fun finished(description: Description?) {
+        Dispatchers.resetMain()
+    }
+}
+
+class ViewModelTest {
+    
+    @get:Rule
+    val mainCoroutineRule = MainCoroutineRule()
+    
+    private lateinit var viewModel: UserViewModel
+    
+    @BeforeEach
+    fun setup() {
+        viewModel = UserViewModel(mockRepository)
+    }
+    
+    @AfterEach
+    fun teardown() {
+        // Cleanup resources
+    }
+}
+```
+
+### Assertions trong Unit Tests
+
+```kotlin
+class AssertionTest {
+    
+    @Test
+    fun `test various assertions`() {
+        // Equality
+        assertEquals(5, 5)
+        assertNotEquals(5, 6)
+        
+        // Boolean
+        assertTrue(true)
+        assertFalse(false)
+        
+        // Null checks
+        assertNotNull("not null")
+        assertNull(null)
+        
+        // Collections
+        val list = listOf(1, 2, 3)
+        assertIterableEquals(listOf(1, 2, 3), list)
+        assertThrows<NoSuchElementException> {
+            emptyList<Int>().first()
+        }
+        
+        // String
+        val message = "Hello World"
+        assertContains(message, "World")
+        assertStartsWith(message, "Hello")
+    }
+}
+```
+
+### Mẹo thực tế
+
+> **💡 Tip**: Đặt tên test mô tả rõ hành vi được test: `should [expected behavior] when [condition]`. Ví dụ: `should emit Error when network fails`.
+
+> **⚠️ Lưu ý**: Không test implementation details, chỉ test behavior (đầu vào → đầu ra). Điều này giúp test ít bị break khi refactor code.
+
+> **🎯 Best Practice**: Aim cho 70-80% code coverage. 100% coverage không có nghĩa là code không có bug, nhưng <50% là tín hiệu xấu.
