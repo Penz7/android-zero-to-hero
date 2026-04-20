@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Menu, X, Smartphone, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_LINKS, WEEKS } from "@/lib/constants";
+import { LoginButton } from "@/components/layout/LoginButton";
 
 export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -63,14 +64,17 @@ export function Header() {
           )}
         </nav>
 
-        {/* Mobile Toggle */}
-        <button
-          className="md:hidden p-2 rounded-md hover:bg-accent"
-          onClick={() => setMobileOpen(!mobileOpen)}
-          aria-label="Toggle menu"
-        >
-          {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
+        {/* Mobile Toggle + Login */}
+        <div className="flex items-center gap-2">
+          <LoginButton />
+          <button
+            className="md:hidden p-2 rounded-md hover:bg-accent"
+            onClick={() => setMobileOpen(!mobileOpen)}
+            aria-label="Toggle menu"
+          >
+            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile Nav */}

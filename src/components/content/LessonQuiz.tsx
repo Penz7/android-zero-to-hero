@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { CheckCircle2, XCircle, RotateCcw, Trophy, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth-context";
+import { saveQuizToCloud } from "@/lib/sync";
 import type { QuizQuestion } from "@/data/quizzes";
 
 interface LessonQuizProps {
@@ -18,6 +20,7 @@ interface QuizState {
 
 export function LessonQuiz({ slug, questions }: LessonQuizProps) {
   const storageKey = `quiz_${slug}`;
+  const { user } = useAuth();
 
   const [expanded, setExpanded] = useState(false);
   const [state, setState] = useState<QuizState>(() => {
@@ -35,6 +38,10 @@ export function LessonQuiz({ slug, questions }: LessonQuizProps) {
   useEffect(() => {
     if (state.submitted) {
       localStorage.setItem(storageKey, JSON.stringify(state));
+      // Sync to Supabase if logged in
+      if (user) {
+        saveQuizToCloud(slug, state.score, questions.length);
+      }
       // Dispatch custom event so checklist can listen
       window.dispatchEvent(
         new CustomEvent("quiz-completed", {

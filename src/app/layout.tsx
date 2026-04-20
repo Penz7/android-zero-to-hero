@@ -4,6 +4,7 @@ import Script from "next/script";
 import "./globals.css";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { Providers } from "@/components/Providers";
 import { SITE_CONFIG } from "@/lib/constants";
 
 const inter = Inter({
@@ -104,9 +105,11 @@ export default function RootLayout({
           color: "var(--foreground)",
         }}
       >
-        <Header />
-        <main className="flex-1">{children}</main>
-        <Footer />
+        <Providers>
+          <Header />
+          <main className="flex-1">{children}</main>
+          <Footer />
+        </Providers>
       </body>
     </html>
   );
