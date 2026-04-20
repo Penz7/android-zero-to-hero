@@ -8,9 +8,9 @@
 
 ## 📸 Preview
 
-| Landing Page | Lesson Page | Quiz | Checklist |
+| Landing Page | Lesson Page | Code Playground | Quiz |
 |:---:|:---:|:---:|:---:|
-| Trang chủ với lộ trình 30 ngày | Bài học MDX + code examples | Quiz trắc nghiệm cuối mỗi bài | Tiến độ + Checklist phỏng vấn |
+| Trang chủ với lộ trình 30 ngày | Bài học MDX + syntax highlighting | Inline editor chạy Kotlin ngay trên trang | Quiz trắc nghiệm cuối mỗi bài |
 
 ## 🎯 Mục tiêu
 
@@ -44,12 +44,14 @@ Sau 30 ngày, bạn có thể:
 ### Tính năng website:
 
 - 📖 **Bài học MDX** — lý thuyết + ví dụ code chi tiết
+- 💻 **Code Playground** — editor CodeMirror 6 chạy Kotlin ngay trên trang (JetBrains compiler API)
 - 🧠 **Quiz trắc nghiệm** — kiểm tra kiến thức cuối mỗi bài (2-3 câu)
 - ✅ **Checklist tiến độ** — track quiz completion, progress bar
 - 🔍 **Tìm kiếm** — Pagefind full-text search
 - 📱 **Responsive** — mobile, tablet, desktop
 - 🌙 **Dark/Light mode** — tự động theo system
 - 🔎 **SEO** — OG images, sitemap, robots.txt
+- 🔐 **GitHub Login** — đồng bộ tiến độ qua Supabase Auth (tùy chọn)
 
 ## 🛠️ Tech Stack
 
@@ -70,13 +72,27 @@ Sau 30 ngày, bạn có thể:
 | **class-variance-authority** | Component variant management |
 | **tailwind-merge** | Merge Tailwind classes safely |
 
-### Content & Markdown
+### Content & Code Editor
 | Technology | Purpose |
 |-----------|---------|
 | **MDX** (`@next/mdx`) | Markdown with JSX components |
 | **react-markdown** | Render MDX content client-side |
 | **remark-gfm** | GitHub Flavored Markdown (tables, strikethrough) |
-| **gray-matter** | Parse YAML frontmatter |
+| **react-syntax-highlighter** | Prism-based syntax highlighting for lesson code blocks |
+| **CodeMirror 6** | Inline code editor with Kotlin syntax highlighting |
+| **@lezer/highlight** | Lezer parser for CodeMirror syntax theme |
+
+### Code Execution
+| Technology | Purpose |
+|-----------|---------|
+| **JetBrains Kotlin API** | Compile & run Kotlin code via `api.kotlinlang.org` (free, no API key) |
+
+### Auth & Sync
+| Technology | Purpose |
+|-----------|---------|
+| **Supabase Auth** | GitHub OAuth for user authentication |
+| **Supabase DB** | Cloud storage for quiz progress sync |
+| **localStorage** | Offline-first progress tracking |
 
 ### Search & SEO
 | Technology | Purpose |
@@ -98,7 +114,6 @@ Sau 30 ngày, bạn có thể:
 |-----------|---------|
 | **ESLint** | Code linting |
 | **PostCSS** | CSS processing |
-| **Playwright** | E2E testing (manual) |
 
 ## 🏗️ Project Structure
 
@@ -109,24 +124,30 @@ android-zero-to-hero/
 ├── src/
 │   ├── app/                  # Next.js App Router pages
 │   │   ├── checklist/        # Progress tracker + interview checklist
-│   │   ├── learn/[slug]/     # Dynamic lesson pages
+│   │   ├── learn/[slug]/     # Dynamic lesson pages with playground
 │   │   ├── projects/         # Project listing + detail pages
 │   │   ├── resources/        # Learning resources
 │   │   ├── roadmap/          # Weekly roadmap
 │   │   └── search/           # Pagefind search
 │   ├── components/
-│   │   ├── content/          # Quiz, Checklist, Lesson cards
+│   │   ├── content/          # Quiz, CodePlayground, Lesson cards
 │   │   ├── landing/          # Homepage sections
-│   │   ├── layout/           # Header, Footer, Breadcrumb
+│   │   ├── layout/           # Header, Footer, Breadcrumb, LoginBanner
 │   │   └── ui/               # shadcn/ui components
 │   ├── content/
 │   │   └── lessons/          # 30 MDX lesson files
 │   ├── data/
-│   │   └── quizzes.ts        # Quiz questions for all lessons
+│   │   ├── quizzes.ts        # Quiz questions for all lessons
+│   │   └── playgrounds.ts    # Code playground snippets per lesson
 │   └── lib/
+│       ├── auth-context.tsx  # Supabase Auth context (GitHub OAuth)
 │       ├── constants.ts      # Lessons, weeks, projects data
+│       ├── supabase.ts       # Supabase client config
+│       ├── sync.ts           # Cloud ↔ local progress sync
 │       ├── types.ts          # TypeScript interfaces
 │       └── utils.ts          # Utility functions (cn, etc.)
+│   └── supabase/
+│       └── schema.sql        # Database schema (RLS policies)
 ├── scripts/
 │   └── strip-layers.js       # Post-build: flatten CSS @layer
 ├── next.config.ts            # Next.js config (basePath, export)
@@ -168,6 +189,34 @@ npm run build
 
 Auto-deploy via GitHub Actions on `git push` to `main` branch.
 
+## 🔐 Authentication (Optional)
+
+Users can optionally sign in with GitHub to sync progress across devices:
+
+1. **Supabase** — free tier for auth + database
+2. **GitHub OAuth** — one-click login
+3. **RLS policies** — users can only access their own data
+4. **Offline-first** — works without login, sync when logged in
+
+### Sign Out Behavior
+- Clears all `localStorage` (quiz progress, preferences)
+- Clears `sessionStorage`
+- Signs out from Supabase
+- Redirects to homepage
+
+## 💻 Code Playground
+
+Each lesson includes an inline code editor with:
+
+- **CodeMirror 6** — syntax highlighting (Catppuccin Mocha theme)
+- **JetBrains Kotlin Compiler API** — compile & run Kotlin code for free
+- **Multi-tab snippets** — switch between examples per lesson
+- **Copy / Reset / Run** buttons
+- **Output panel** — shows execution results, errors, and timing
+
+Supported: basic Kotlin syntax, functions, classes, collections, null safety, etc.
+Not supported: Android-specific APIs (Compose, Room, etc. need Android runtime).
+
 ## 🔧 Key Decisions
 
 ### Why Static Export?
@@ -182,6 +231,9 @@ Client-side search without JavaScript framework. Indexes statically at build tim
 ### Why MDX?
 Content lives in `.mdx` files — easy to edit, version control, và mix code examples with prose.
 
+### Why JetBrains API over Piston?
+Piston public API became whitelist-only (Feb 2026). JetBrains `api.kotlinlang.org` is free, no API key needed, and maintained by JetBrains.
+
 ### CSS @layer Fix
 Tailwind CSS v4 uses `@layer` blocks. Some browsers/Pages have issues parsing `@font-face` before `@layer`. Post-build script strips `@layer` wrappers while preserving content.
 
@@ -189,12 +241,13 @@ Tailwind CSS v4 uses `@layer` blocks. Some browsers/Pages have issues parsing `@
 
 | Metric | Value |
 |--------|-------|
-| Total files | 80 source files |
+| Total files | 80+ source files |
 | Lessons | 30 MDX files |
 | Quiz questions | ~75 questions (2-3 per lesson) |
+| Playground snippets | ~20 code examples |
 | Projects | 4 detailed project guides |
 | Pages generated | 47 static pages |
-| Search index | ~5,000 words |
+| Search index | ~5,500 words |
 
 ## 📝 License
 
@@ -205,9 +258,11 @@ MIT License — free to use, modify, and distribute.
 - [Next.js](https://nextjs.org/) — React framework
 - [Tailwind CSS](https://tailwindcss.com/) — CSS framework
 - [shadcn/ui](https://ui.shadcn.com/) — Component library
+- [CodeMirror](https://codemirror.net/) — Code editor
+- [JetBrains](https://www.jetbrains.com/) — Kotlin language & compiler API
+- [Supabase](https://supabase.com/) — Auth & database
 - [Pagefind](https://pagefind.app/) — Search engine
 - [Lucide](https://lucide.dev/) — Icons
-- [JetBrains](https://www.jetbrains.com/) — Kotlin language
 
 ---
 
