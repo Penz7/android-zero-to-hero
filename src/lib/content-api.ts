@@ -14,6 +14,38 @@ export interface LessonRow {
   content: string;
 }
 
+export interface WeekRow {
+  number: number;
+  title: string;
+  theme: string;
+  description: string;
+  difficulty: string;
+}
+
+export interface ProjectRow {
+  slug: string;
+  title: string;
+  week: string;
+  difficulty: string;
+  skills: string[];
+  description: string;
+  sort_order: number;
+}
+
+export interface FaqRow {
+  id: string;
+  question: string;
+  answer: string;
+  sort_order: number;
+}
+
+export interface ChecklistItemRow {
+  id: string;
+  category: string;
+  item_text: string;
+  sort_order: number;
+}
+
 export interface QuizQuestionRow {
   id: string;
   question: string;
@@ -150,31 +182,100 @@ export async function fetchPlaygroundBySlug(slug: string): Promise<PlaygroundSni
   return snippets;
 }
 
-// ─── Fetch weeks (derived from lessons) ───────────────────────
+// ─── Fetch weeks from Supabase ─────────────────────────────────
 export async function fetchWeeks(): Promise<
   { number: number; title: string; theme: string; description: string; difficulty: string; lessons: string[] }[]
 > {
+  const cached = getCached<any[]>("weeks_with_lessons");
+  if (cached) return cached;
+
+  const { data, error } = await supabase
+    .from("weeks")
+    .select("*")
+    .order("number", { ascending: true });
+
+  if (error) {
+    console.error("fetchWeeks error:", error);
+    return [];
+  }
+
+  // Also get lesson slugs per week
   const allLessons = await fetchAllLessons();
   const weekMap = new Map<number, string[]>();
-
   for (const l of allLessons) {
     const arr = weekMap.get(l.week) ?? [];
     arr.push(l.slug);
     weekMap.set(l.week, arr);
   }
 
-  const WEEK_TITLES: Record<number, { title: string; theme: string; description: string; difficulty: string }> = {
-    1: { title: "Kotlin Fundamentals", theme: "Nền tảng ngôn ngữ", description: "Bắt đầu từ cài đặt môi trường, học cú pháp Kotlin cơ bản.", difficulty: "⭐" },
-    2: { title: "Jetpack Compose Basics", theme: "UI hiện đại", description: "Làm chủ UI với Compose: Composable functions, Layouts, State.", difficulty: "⭐⭐" },
-    3: { title: "Architecture & Data", theme: "Xây dựng chuyên nghiệp", description: "MVVM, ViewModel, Coroutines, Room Database, Retrofit.", difficulty: "⭐⭐⭐" },
-    4: { title: "Engineering Level", theme: "Kỹ năng Engineer", description: "Unit/UI Testing, CI/CD, Performance, Deploy Play Store.", difficulty: "⭐⭐⭐⭐" },
-  };
-
-  return [1, 2, 3, 4].map((num) => ({
-    number: num,
-    ...(WEEK_TITLES[num] ?? { title: `Week ${num}`, theme: "", description: "", difficulty: "" }),
-    lessons: weekMap.get(num) ?? [],
+  const result = ((data ?? []) as WeekRow[]).map((w) => ({
+    ...w,
+    lessons: weekMap.get(w.number) ?? [],
   }));
+
+  setCache("weeks_with_lessons", result);
+  return result;
+}
+
+// ─── Fetch projects from Supabase ─────────────────────────────
+export async function fetchProjects(): Promise<ProjectRow[]> {
+  const cached = getCached<ProjectRow[]>("projects");
+  if (cached) return cached;
+
+  const { data, error } = await supabase
+    .from("projects")
+    .select("*")
+    .order("sort_order", { ascending: true });
+
+  if (error) {
+    console.error("fetchProjects error:", error);
+    return [];
+  }
+
+  const projects = (data ?? []) as ProjectRow[];
+  setCache("projects", projects);
+  return projects;
+}
+
+// ─── Fetch FAQs from Supabase ──────────────────────────────────
+export async function fetchFaqs(): Promise<FaqRow[]> {
+  const cached = getCached<FaqRow[]>("faqs");
+  if (cached) return cached;
+
+  const { data, error } = await supabase
+    .from("faqs")
+    .select("*")
+    .order("sort_order", { ascending: true });
+
+  if (error) {
+    console.error("fetchFaqs error:", error);
+    return [];
+  }
+
+  const faqs = (data ?? []) as FaqRow[];
+  setCache("faqs", faqs);
+  return faqs;
+}
+
+// ─── Fetch checklist items from Supabase ───────────────────────
+export async function fetchChecklistItems(): Promise<ChecklistItemRow[]> {
+  const cached = getCached<ChecklistItemRow[]>("checklist_items");
+  if (cached) return cached;
+
+  const { data, error } = await supabase
+    .from("checklist_items")
+    .select("*")
+    .order("category", { ascending: true })
+    .order("sort_order", { ascending: true });
+
+  if (error) {
+    console.error("fetchChecklistItems error:", error);
+    return [];
+  }
+
+  const items = (data ?? []) as ChecklistItemRow[];
+  setCache("checklist_items", items);
+  return items;
 }
 
 // ─── Clear cache (useful after content update) ────────────────

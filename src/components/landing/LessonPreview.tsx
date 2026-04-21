@@ -1,10 +1,13 @@
+"use client";
+
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { ALL_LESSONS } from "@/lib/constants";
-import { LessonCard } from "@/components/content/LessonCard";
+import { useAllLessons } from "@/lib/use-content";
 
 export function LessonPreview() {
-  const firstLesson = ALL_LESSONS[0];
+  const { lessons, loading } = useAllLessons();
+  const firstLesson = lessons[0];
+
   return (
     <section className="py-16 md:py-24 bg-muted/30">
       <div className="container mx-auto px-4">
@@ -22,14 +25,7 @@ export function LessonPreview() {
           <div className="rounded-lg border bg-zinc-950 p-5 mb-6">
             <div className="text-xs text-zinc-500 mb-2">main.kt</div>
             <pre className="text-sm text-zinc-100 overflow-x-auto">
-              <code>{`fun main() {
-    val name = "Android"
-    val version = 15
-
-    // String template
-    println("Hello, $name!")
-    println("Version: $version")
-}`}</code>
+              <code>{`fun main() {\n    val name = "Android"\n    val version = 15\n\n    // String template\n    println("Hello, $name!")\n    println("Version: $version")\n}`}</code>
             </pre>
           </div>
 
@@ -49,12 +45,23 @@ export function LessonPreview() {
           </div>
 
           <div className="text-center">
-            <Link
-              href={`/learn/${firstLesson.slug}`}
-              className="inline-flex items-center gap-1 text-green-600 hover:underline"
-            >
-              Đọc bài học đầy đủ <ArrowRight className="h-4 w-4" />
-            </Link>
+            {firstLesson ? (
+              <Link
+                href={`/learn/${firstLesson.slug}`}
+                className="inline-flex items-center gap-1 text-green-600 hover:underline"
+              >
+                Đọc bài học đầy đủ <ArrowRight className="h-4 w-4" />
+              </Link>
+            ) : loading ? (
+              <span className="text-muted-foreground text-sm">Đang tải...</span>
+            ) : (
+              <Link
+                href="/learn/kotlin-intro"
+                className="inline-flex items-center gap-1 text-green-600 hover:underline"
+              >
+                Đọc bài học đầy đủ <ArrowRight className="h-4 w-4" />
+              </Link>
+            )}
           </div>
         </div>
       </div>

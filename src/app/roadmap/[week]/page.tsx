@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { Breadcrumb } from "@/components/layout/Breadcrumb";
-import { WEEKS, ALL_LESSONS } from "@/lib/constants";
-import { LessonCard } from "@/components/content/LessonCard";
+import { WEEKS } from "@/lib/constants";
+import { WeekPageContent } from "./WeekPageContent";
 import type { Metadata } from "next";
 
 interface WeekPageProps {
@@ -26,49 +26,18 @@ export async function generateMetadata({ params }: WeekPageProps): Promise<Metad
 export default async function WeekPage({ params }: WeekPageProps) {
   const { week: weekParam } = await params;
   const weekNum = parseInt(weekParam.replace("week-", ""));
-  const week = WEEKS.find((w) => w.number === weekNum);
-  if (!week) notFound();
-
-  const weekLessons = ALL_LESSONS.filter((l) => l.week === week.number);
+  const weekExists = WEEKS.some((w) => w.number === weekNum);
+  if (!weekExists) notFound();
 
   return (
     <div className="container mx-auto px-4 py-12">
       <Breadcrumb
         items={[
           { label: "Lộ trình", href: "/roadmap" },
-          { label: `Tuần ${week.number}: ${week.title}` },
+          { label: `Tuần ${weekNum}` },
         ]}
       />
-
-      <div className="max-w-4xl mx-auto">
-        <div className="mb-8">
-          <span className="text-4xl">{week.difficulty}</span>
-          <h1 className="text-4xl font-bold tracking-tight mt-2">
-            Tuần {week.number}: {week.title}
-          </h1>
-          <p className="mt-3 text-lg text-muted-foreground">
-            {week.description}
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            7 bài học • {week.theme}
-          </p>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          {weekLessons.map((lesson) => (
-            <LessonCard
-              key={lesson.slug}
-              slug={lesson.slug}
-              title={lesson.title}
-              day={lesson.day}
-              week={lesson.week}
-              difficulty={lesson.difficulty}
-              duration={lesson.duration}
-              description={lesson.description}
-            />
-          ))}
-        </div>
-      </div>
+      <WeekPageContent weekNum={weekNum} />
     </div>
   );
 }

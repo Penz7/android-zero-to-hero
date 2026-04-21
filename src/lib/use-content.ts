@@ -6,12 +6,20 @@ import {
   fetchLesson,
   fetchQuizBySlug,
   fetchPlaygroundBySlug,
+  fetchWeeks,
+  fetchProjects,
+  fetchFaqs,
+  fetchChecklistItems,
   type LessonRow,
   type QuizWithQuestions,
   type PlaygroundSnippetRow,
+  type WeekRow,
+  type ProjectRow,
+  type FaqRow,
+  type ChecklistItemRow,
 } from "@/lib/content-api";
 import { isSupabaseConfigured } from "@/lib/supabase";
-import { ALL_LESSONS } from "@/lib/constants";
+import { ALL_LESSONS, WEEKS, PROJECTS, FAQS } from "@/lib/constants";
 import { getQuizBySlug } from "@/data/quizzes";
 import { getPlaygroundBySlug } from "@/data/playgrounds";
 
@@ -148,4 +156,150 @@ export function useLessonNavigation(slug: string) {
   const nextLesson = currentIndex < lessons.length - 1 ? lessons[currentIndex + 1] : null;
 
   return { prevLesson, nextLesson, currentIndex, totalLessons: lessons.length };
+}
+
+// ─── useWeeks: fetch weeks with fallback ──────────────────────
+interface WeekWithLessons {
+  number: number;
+  title: string;
+  theme: string;
+  description: string;
+  difficulty: string;
+  lessons: string[];
+}
+
+export function useWeeks() {
+  const [weeks, setWeeks] = useState<WeekWithLessons[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!isSupabaseConfigured) {
+      setWeeks(
+        WEEKS.map((w) => ({
+          number: w.number,
+          title: w.title,
+          theme: w.theme,
+          description: w.description,
+          difficulty: w.difficulty,
+          lessons: w.lessons,
+        }))
+      );
+      setLoading(false);
+      return;
+    }
+
+    fetchWeeks()
+      .then((data) => {
+        if (!cancelled) setWeeks(data);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, []);
+
+  return { weeks, loading };
+}
+
+// ─── useProjects: fetch projects with fallback ────────────────
+export function useProjects() {
+  const [projects, setProjects] = useState<ProjectRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!isSupabaseConfigured) {
+      setProjects(
+        PROJECTS.map((p, i) => ({
+          slug: p.slug,
+          title: p.title,
+          week: p.week,
+          difficulty: p.difficulty,
+          skills: p.skills,
+          description: p.description,
+          sort_order: i,
+        }))
+      );
+      setLoading(false);
+      return;
+    }
+
+    fetchProjects()
+      .then((data) => {
+        if (!cancelled) setProjects(data);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, []);
+
+  return { projects, loading };
+}
+
+// ─── useFaqs: fetch FAQs with fallback ────────────────────────
+export function useFaqs() {
+  const [faqs, setFaqs] = useState<FaqRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!isSupabaseConfigured) {
+      setFaqs(
+        FAQS.map((f, i) => ({
+          id: `static-${i}`,
+          question: f.question,
+          answer: f.answer,
+          sort_order: i,
+        }))
+      );
+      setLoading(false);
+      return;
+    }
+
+    fetchFaqs()
+      .then((data) => {
+        if (!cancelled) setFaqs(data);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, []);
+
+  return { faqs, loading };
+}
+
+// ─── useChecklistItems: fetch checklist with fallback ─────────
+export function useChecklistItems() {
+  const [items, setItems] = useState<ChecklistItemRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!isSupabaseConfigured) {
+      setLoading(false);
+      return;
+    }
+
+    fetchChecklistItems()
+      .then((data) => {
+        if (!cancelled) setItems(data);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, []);
+
+  return { items, loading };
 }
