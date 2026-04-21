@@ -4,8 +4,11 @@ import { useAuth } from "@/lib/auth-context";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, Brain, Code2, Calendar, FolderOpen, HelpCircle, CheckSquare, LayoutDashboard, LogOut, Menu, X } from "lucide-react";
+import { BookOpen, Brain, Code2, Calendar, FolderOpen, HelpCircle, CheckSquare, LayoutDashboard, LogOut, Menu, X, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+// Admin GitHub user IDs — only these users can access admin panel
+const ADMIN_GITHUB_IDS = [87363348]; // Penz7
 
 const NAV_ITEMS = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
@@ -23,6 +26,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // Check if user is admin
+  const isAdmin = user && (() => {
+    const githubId = user.user_metadata?.provider_id
+      || user.identities?.[0]?.id
+      || user.user_metadata?.sub;
+    return ADMIN_GITHUB_IDS.includes(Number(githubId));
+  })();
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -31,6 +42,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
 
+  // Not logged in — show login
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30">
@@ -51,11 +63,47 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
 
+  // Logged in but NOT admin — show access denied
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/30">
+        <div className="max-w-md w-full mx-4 p-8 bg-background rounded-xl border shadow-sm text-center">
+          <Shield className="h-16 w-16 text-red-500 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold mb-2">Truy cập bị từ chối</h1>
+          <p className="text-muted-foreground mb-2">
+            Tài khoản <strong>{user.email}</strong> không có quyền admin.
+          </p>
+          <p className="text-xs text-muted-foreground mb-6">
+            Chỉ chủ sở hữu dự án mới có quyền truy cập trang này.
+          </p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={signOut}
+              className="rounded-lg border px-4 py-2 text-sm hover:bg-muted transition-colors"
+            >
+              Đăng xuất
+            </button>
+            <Link
+              href="/"
+              className="rounded-lg bg-green-600 text-white px-4 py-2 text-sm hover:bg-green-700 transition-colors"
+            >
+              Về trang chủ
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Admin access granted — show full admin panel
   return (
     <div className="min-h-screen bg-muted/20">
       {/* Mobile header */}
       <div className="lg:hidden flex items-center justify-between p-4 border-b bg-background">
-        <h1 className="font-bold text-lg">🛠️ Admin Panel</h1>
+        <h1 className="font-bold text-lg flex items-center gap-2">
+          🛠️ Admin Panel
+          <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Admin</span>
+        </h1>
         <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2">
           {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
@@ -70,11 +118,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           )}
         >
           <div className="p-4 border-b hidden lg:block">
-            <h1 className="font-bold text-lg">🛠️ Admin Panel</h1>
-            <p className="text-xs text-muted-foreground mt-1">{user.email}</p>
+            <h1 className="font-bold text-lg flex items-center gap-2">
+              🛠️ Admin Panel
+              <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Admin</span>
+            </h1>
+            <p className="text-xs text-muted-foreground mt-1 truncate">{user.email}</p>
           </div>
           <div className="p-4 border-b lg:hidden">
-            <p className="text-sm font-medium">{user.email}</p>
+            <p className="text-sm font-medium truncate">{user.email}</p>
           </div>
           <nav className="p-2 space-y-1">
             {NAV_ITEMS.map((item) => (
