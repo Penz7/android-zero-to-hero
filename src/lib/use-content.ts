@@ -192,7 +192,29 @@ export function useWeeks() {
 
     fetchWeeks()
       .then((data) => {
-        if (!cancelled) setWeeks(data);
+        if (!cancelled) {
+          // Fallback to static if Supabase returns empty (table may not exist)
+          setWeeks(data.length > 0 ? data : WEEKS.map((w) => ({
+            number: w.number,
+            title: w.title,
+            theme: w.theme,
+            description: w.description,
+            difficulty: w.difficulty,
+            lessons: w.lessons,
+          })));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setWeeks(WEEKS.map((w) => ({
+            number: w.number,
+            title: w.title,
+            theme: w.theme,
+            description: w.description,
+            difficulty: w.difficulty,
+            lessons: w.lessons,
+          })));
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -211,26 +233,24 @@ export function useProjects() {
 
   useEffect(() => {
     let cancelled = false;
+    const fallback = PROJECTS.map((p, i) => ({
+      slug: p.slug, title: p.title, week: p.week,
+      difficulty: p.difficulty, skills: p.skills,
+      description: p.description, sort_order: i,
+    }));
 
     if (!isSupabaseConfigured) {
-      setProjects(
-        PROJECTS.map((p, i) => ({
-          slug: p.slug,
-          title: p.title,
-          week: p.week,
-          difficulty: p.difficulty,
-          skills: p.skills,
-          description: p.description,
-          sort_order: i,
-        }))
-      );
+      setProjects(fallback);
       setLoading(false);
       return;
     }
 
     fetchProjects()
       .then((data) => {
-        if (!cancelled) setProjects(data);
+        if (!cancelled) setProjects(data.length > 0 ? data : fallback);
+      })
+      .catch(() => {
+        if (!cancelled) setProjects(fallback);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -249,23 +269,23 @@ export function useFaqs() {
 
   useEffect(() => {
     let cancelled = false;
+    const fallback = FAQS.map((f, i) => ({
+      id: `static-${i}`, question: f.question,
+      answer: f.answer, sort_order: i,
+    }));
 
     if (!isSupabaseConfigured) {
-      setFaqs(
-        FAQS.map((f, i) => ({
-          id: `static-${i}`,
-          question: f.question,
-          answer: f.answer,
-          sort_order: i,
-        }))
-      );
+      setFaqs(fallback);
       setLoading(false);
       return;
     }
 
     fetchFaqs()
       .then((data) => {
-        if (!cancelled) setFaqs(data);
+        if (!cancelled) setFaqs(data.length > 0 ? data : fallback);
+      })
+      .catch(() => {
+        if (!cancelled) setFaqs(fallback);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

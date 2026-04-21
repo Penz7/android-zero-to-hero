@@ -189,32 +189,34 @@ export async function fetchWeeks(): Promise<
   const cached = getCached<any[]>("weeks_with_lessons");
   if (cached) return cached;
 
-  const { data, error } = await supabase
-    .from("weeks")
-    .select("*")
-    .order("number", { ascending: true });
+  try {
+    const { data, error } = await supabase
+      .from("weeks")
+      .select("*")
+      .order("number", { ascending: true });
 
-  if (error) {
-    console.error("fetchWeeks error:", error);
+    if (error || !data || data.length === 0) {
+      return [];
+    }
+
+    const allLessons = await fetchAllLessons();
+    const weekMap = new Map<number, string[]>();
+    for (const l of allLessons) {
+      const arr = weekMap.get(l.week) ?? [];
+      arr.push(l.slug);
+      weekMap.set(l.week, arr);
+    }
+
+    const result = ((data ?? []) as WeekRow[]).map((w) => ({
+      ...w,
+      lessons: weekMap.get(w.number) ?? [],
+    }));
+
+    setCache("weeks_with_lessons", result);
+    return result;
+  } catch {
     return [];
   }
-
-  // Also get lesson slugs per week
-  const allLessons = await fetchAllLessons();
-  const weekMap = new Map<number, string[]>();
-  for (const l of allLessons) {
-    const arr = weekMap.get(l.week) ?? [];
-    arr.push(l.slug);
-    weekMap.set(l.week, arr);
-  }
-
-  const result = ((data ?? []) as WeekRow[]).map((w) => ({
-    ...w,
-    lessons: weekMap.get(w.number) ?? [],
-  }));
-
-  setCache("weeks_with_lessons", result);
-  return result;
 }
 
 // ─── Fetch projects from Supabase ─────────────────────────────
@@ -222,19 +224,19 @@ export async function fetchProjects(): Promise<ProjectRow[]> {
   const cached = getCached<ProjectRow[]>("projects");
   if (cached) return cached;
 
-  const { data, error } = await supabase
-    .from("projects")
-    .select("*")
-    .order("sort_order", { ascending: true });
+  try {
+    const { data, error } = await supabase
+      .from("projects")
+      .select("*")
+      .order("sort_order", { ascending: true });
 
-  if (error) {
-    console.error("fetchProjects error:", error);
+    if (error || !data) return [];
+    const projects = data as ProjectRow[];
+    setCache("projects", projects);
+    return projects;
+  } catch {
     return [];
   }
-
-  const projects = (data ?? []) as ProjectRow[];
-  setCache("projects", projects);
-  return projects;
 }
 
 // ─── Fetch FAQs from Supabase ──────────────────────────────────
@@ -242,19 +244,19 @@ export async function fetchFaqs(): Promise<FaqRow[]> {
   const cached = getCached<FaqRow[]>("faqs");
   if (cached) return cached;
 
-  const { data, error } = await supabase
-    .from("faqs")
-    .select("*")
-    .order("sort_order", { ascending: true });
+  try {
+    const { data, error } = await supabase
+      .from("faqs")
+      .select("*")
+      .order("sort_order", { ascending: true });
 
-  if (error) {
-    console.error("fetchFaqs error:", error);
+    if (error || !data) return [];
+    const faqs = data as FaqRow[];
+    setCache("faqs", faqs);
+    return faqs;
+  } catch {
     return [];
   }
-
-  const faqs = (data ?? []) as FaqRow[];
-  setCache("faqs", faqs);
-  return faqs;
 }
 
 // ─── Fetch checklist items from Supabase ───────────────────────
@@ -262,20 +264,20 @@ export async function fetchChecklistItems(): Promise<ChecklistItemRow[]> {
   const cached = getCached<ChecklistItemRow[]>("checklist_items");
   if (cached) return cached;
 
-  const { data, error } = await supabase
-    .from("checklist_items")
-    .select("*")
-    .order("category", { ascending: true })
-    .order("sort_order", { ascending: true });
+  try {
+    const { data, error } = await supabase
+      .from("checklist_items")
+      .select("*")
+      .order("category", { ascending: true })
+      .order("sort_order", { ascending: true });
 
-  if (error) {
-    console.error("fetchChecklistItems error:", error);
+    if (error || !data) return [];
+    const items = data as ChecklistItemRow[];
+    setCache("checklist_items", items);
+    return items;
+  } catch {
     return [];
   }
-
-  const items = (data ?? []) as ChecklistItemRow[];
-  setCache("checklist_items", items);
-  return items;
 }
 
 // ─── Clear cache (useful after content update) ────────────────
