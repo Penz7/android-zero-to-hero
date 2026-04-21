@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build && node scripts/strip-layers.js && npx pagefind --site out --output-subdir _pagefind",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "seed:content": "npx tsx scripts/seed-content.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.0",
