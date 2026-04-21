@@ -1,12 +1,11 @@
 -- ═══════════════════════════════════════════════════════════════
 -- Security: Admin-only RLS policies
--- Only the project owner (Penz7, GitHub ID: 87363348) can write
 -- Run this in Supabase SQL Editor
 -- ═══════════════════════════════════════════════════════════════
 
 -- ─── Helper function: check if current user is admin ──────────
--- Supabase stores GitHub provider ID in raw_user_meta_data->>'provider_id'
--- or in identities table. We check both.
+-- Replace YOUR_GITHUB_USER_ID with your actual GitHub user ID
+-- Find it at: https://api.github.com/users/YOUR_USERNAME
 CREATE OR REPLACE FUNCTION is_admin()
 RETURNS BOOLEAN
 SET search_path = ''
@@ -15,12 +14,8 @@ AS $$
     SELECT 1 FROM auth.users
     WHERE id = auth.uid()
     AND (
-      raw_user_meta_data->>'provider_id' = '87363348'
-      OR raw_user_meta_data->>'sub' = '87363348'
-      OR EXISTS (
-        SELECT 1 FROM jsonb_array_elements(raw_app_meta_data->'provider'->'provider_id') AS pid
-        WHERE pid::text = '87363348'
-      )
+      raw_user_meta_data->>'provider_id' = 'YOUR_GITHUB_USER_ID'
+      OR raw_user_meta_data->>'sub' = 'YOUR_GITHUB_USER_ID'
     )
   );
 $$ LANGUAGE sql STABLE;

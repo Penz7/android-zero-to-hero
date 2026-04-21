@@ -7,8 +7,11 @@ import { usePathname } from "next/navigation";
 import { BookOpen, Brain, Code2, Calendar, FolderOpen, HelpCircle, CheckSquare, LayoutDashboard, LogOut, Menu, X, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// Admin GitHub user IDs — only these users can access admin panel
-const ADMIN_GITHUB_IDS = [87363348]; // Penz7
+// Admin GitHub user IDs — loaded from env, never hardcoded
+const ADMIN_GITHUB_IDS = (process.env.NEXT_PUBLIC_ADMIN_GITHUB_IDS || "")
+  .split(",")
+  .map(Number)
+  .filter(Boolean);
 
 const NAV_ITEMS = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
