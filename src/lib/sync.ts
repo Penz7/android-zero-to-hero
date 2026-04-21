@@ -37,11 +37,13 @@ export async function syncToCloud(): Promise<boolean> {
     try {
       const data: QuizLocalData = JSON.parse(localStorage.getItem(key)!);
       if (data.submitted) {
+        // answers.length or total — handle both formats
+        const quizTotal = data.total || (Array.isArray((data as any).answers) ? (data as any).answers.length : 3);
         rows.push({
           lesson_slug: slug,
           quiz_score: data.score,
-          quiz_total: data.total,
-          completed: data.score >= Math.ceil(data.total * 0.7),
+          quiz_total: quizTotal,
+          completed: data.score >= Math.ceil(quizTotal * 0.7),
           completed_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         });
@@ -104,6 +106,8 @@ export async function syncFromCloud(): Promise<number> {
           score: row.quiz_score,
           total: row.quiz_total,
           submitted: true,
+          // Reconstruct answers array (all null) so LessonQuiz won't crash
+          answers: new Array(row.quiz_total || 3).fill(null),
         })
       );
       synced++;

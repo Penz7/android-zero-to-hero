@@ -29,7 +29,19 @@ export function LessonQuiz({ slug, questions }: LessonQuizProps) {
       const saved = localStorage.getItem(storageKey);
       if (saved) {
         try {
-          return JSON.parse(saved);
+          const parsed = JSON.parse(saved);
+          // Validate: ensure answers array exists and has correct length
+          if (Array.isArray(parsed.answers) && parsed.answers.length === questions.length) {
+            return parsed;
+          }
+          // Data from cloud sync (no answers field) — reconstruct answers
+          if (parsed.submitted && typeof parsed.score === "number") {
+            return {
+              answers: new Array(questions.length).fill(null),
+              submitted: parsed.submitted,
+              score: parsed.score,
+            };
+          }
         } catch {}
       }
     }
@@ -75,7 +87,7 @@ export function LessonQuiz({ slug, questions }: LessonQuizProps) {
     localStorage.removeItem(storageKey);
   };
 
-  const allAnswered = state.answers.every((a) => a !== null);
+  const allAnswered = Array.isArray(state.answers) && state.answers.every((a) => a !== null);
   const passed = state.submitted && state.score >= Math.ceil(questions.length * 0.7);
 
   return (
